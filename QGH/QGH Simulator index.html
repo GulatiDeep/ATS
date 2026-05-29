@@ -971,6 +971,13 @@
                 }
             }
 
+            if (typeof data === 'object' && data.type === 'trackSettings') {
+                if (role === 'trainee') {
+                    if (data.outboundTrack) settings.outboundTrack = data.outboundTrack;
+                    if (data.inboundTrack)  settings.inboundTrack  = data.inboundTrack;
+                }
+            }
+
             if (typeof data === 'object' && data.type === 'userInfo') {
                 if (role === 'trainee') {
                     instructorName = data.instructorName || instructorName;
@@ -1471,6 +1478,12 @@
             } catch (e) {
                 console.warn('Failed to send user info:', e);
             }
+            // Instructor: also push current track settings so trainee is in sync on connect
+            if (appRole === 'instructor') {
+                try {
+                    p2pConn.send({ type: 'trackSettings', outboundTrack: settings.outboundTrack, inboundTrack: settings.inboundTrack });
+                } catch(e) { console.warn('P2P trackSettings send error', e); }
+            }
         }
 
         function updateUserNameDisplay() {
@@ -1740,6 +1753,12 @@
             const num = parseInt(val);
             if (!isNaN(num) && num >= 1 && num <= 360) {
                 settings[key] = num;
+                // Broadcast updated track settings to trainee
+                if (appRole === 'instructor' && p2pConn && p2pConn.open) {
+                    try {
+                        p2pConn.send({ type: 'trackSettings', outboundTrack: settings.outboundTrack, inboundTrack: settings.inboundTrack });
+                    } catch(e) { console.warn('P2P trackSettings send error', e); }
+                }
             }
         }
 
@@ -2342,7 +2361,7 @@
 
                 // History dots are rendered only when allowed for trainee or always for instructor
                 if (showVisuals && ac.history && ac.history.length > 0) {
-                    const dotR = isSelected ? (appRole === 'trainee' ? 2.8 : 2.2) : (appRole === 'trainee' ? 2.4 : 1.8);
+                    const dotR = isSelected ? (appRole === 'trainee' ? 2.1 : 1.4) : (appRole === 'trainee' ? 1.8 : 1.2);
                     ac.history.forEach((hist) => {
                         const hX = center.x + (hist.x / zoomNM) * radarRadius;
                         const hY = center.y - (hist.y / zoomNM) * radarRadius;
@@ -2359,7 +2378,7 @@
 
                 if (showVisuals) {
                     // Blip — filled yellow square
-                    const sq = isSelected ? (appRole === 'trainee' ? 7 : 6) : (appRole === 'trainee' ? 6 : 5);
+                    const sq = isSelected ? (appRole === 'trainee' ? 6 : 4.8) : (appRole === 'trainee' ? 5.5 : 3.8);
                     ctx.fillStyle = 'rgba(253, 224, 71, 1)';
                     ctx.fillRect(renderX - sq, renderY - sq, sq * 2, sq * 2);
 
