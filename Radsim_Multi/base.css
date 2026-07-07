@@ -1,16 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Radar Simulator</title>
-<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-<script src="https://unpkg.com/lucide@0.294.0/dist/umd/lucide.min.js"></script>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<style>
 .num-input{background:#0f172a;border:1px solid #065f46;color:#34d399;text-align:center;font-weight:700}
 .num-input:focus{outline:none;border-color:#10b981;box-shadow:0 0 8px rgba(16,185,129,.3)}
 input[type=number]::-webkit-inner-spin-button,
@@ -195,44 +182,3 @@ input[type=number]{-moz-appearance:textfield}
   #radar-workspace{grid-template-columns:minmax(22rem,1fr) .65rem clamp(19rem,var(--controller-landscape-size,28%),34rem);gap:.625rem;padding:.625rem}
   #controller-panel{padding:.75rem}
 }
-</style>
-</head>
-<body class="bg-slate-950 text-emerald-400 font-mono select-none overflow-hidden flex flex-col"
-      style="height:100dvh;position:fixed;width:100%;touch-action:pan-x pan-y">
-
-<!-- ROLE SELECTION -->
-<div id="role-overlay" class="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 px-6">
-  <div class="text-center mb-2">
-    <div class="flex items-center justify-center gap-2 mb-1">
-      <i data-lucide="radar" class="w-7 h-7 text-emerald-400 animate-pulse"></i>
-      <h1 class="text-xl font-black tracking-widest text-emerald-100">RADAR SIMULATOR</h1>
-    </div>
-    <p class="text-[10px] text-emerald-700 tracking-widest font-semibold uppercase">Select Operating Mode</p>
-  </div>
-  <div class="w-full max-w-xs flex flex-col gap-3">
-    <button onclick="window.location.href='instructor.html'" class="role-card w-full bg-emerald-950/40 border border-emerald-800/60 rounded-2xl p-4 text-left flex items-center gap-4 hover:border-emerald-500/70 hover:bg-emerald-900/30">
-      <div class="w-10 h-10 rounded-xl bg-emerald-900/50 border border-emerald-700/50 flex items-center justify-center flex-shrink-0">
-        <i data-lucide="graduation-cap" class="w-5 h-5 text-emerald-300"></i>
-      </div>
-      <div>
-        <p class="text-sm font-black text-emerald-200 tracking-wide">INSTRUCTOR</p>
-        <p class="text-[9px] text-emerald-700 mt-0.5">Host Radar session · share ID with trainees</p>
-      </div>
-    </button>
-    <button onclick="window.location.href='sre.html'" class="role-card w-full bg-sky-950/40 border border-sky-800/60 rounded-2xl p-4 text-left flex items-center gap-4 hover:border-sky-500/70 hover:bg-sky-900/30">
-      <div class="w-10 h-10 rounded-xl bg-sky-900/50 border border-sky-700/50 flex items-center justify-center flex-shrink-0">
-        <i data-lucide="user" class="w-5 h-5 text-sky-300"></i>
-      </div>
-      <div>
-        <p class="text-sm font-black text-sky-200 tracking-wide">SRE</p>
-        <p class="text-[9px] text-sky-700 mt-0.5">SRE practice · enter instructor's session ID</p>
-      </div>
-    </button>
-  </div>
-  <p class="text-[8px] text-emerald-900 tracking-widest mt-2">v3.0</p>
-</div>
-
-<!-- INSTRUCTOR SETUP-->
-<script>lucide.createIcons();</script>
-</body>
-</html>
