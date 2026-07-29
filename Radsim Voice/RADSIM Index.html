@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimal-ui">
+    <title>Voice Based Radar Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <a class="ats-platform-home" href="../index.html" title="ATS Training Platform" aria-label="ATS Training Platform Home">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 11 12 4l9 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M5 10v10h14V10" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+            <path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+        </svg>
+    </a>
+
+    <div id="container">
+
+
+        <div id="radarContainer">
+
+
+            <div id="radarScope">
+                <table class="top-table">
+                    <tr>
+                        <td class="table-cell" id="radarDisplay">
+                            000° / 00.0 NM
+                        </td>
+                        <td class="table-cell" id="aircraftCountDisplay">
+                            Total Aircraft: 0<!-- Aircraft Count Display -->
+                        </td>
+                        <td class="table-cell">
+                            <span id="currentTime" style="margin-right: 20px; "></span>
+                            <span id="runningTime"></span>
+                        </td>
+                        <td class="table-cell">
+                            <button id="pauseButton" class="control-button">Pause</button>
+                        </td>
+                    </tr>
+                </table>
+                <div id="panContainer">
+                    <!-- North Marker line -->
+                    <div id="northLine"></div>
+
+                    <!-- South Marker line -->
+                    <div id="southLine"></div>
+
+                    <!-- East Marker line -->
+                    <div id="eastLine"></div>
+
+                    <!-- West Marker line -->
+                    <div id="westLine"></div>
+
+
+                    <div class="range-rings" id="rangeRingsContainer"></div>
+                    <div id="runway" class="runway"></div>
+                    <div id="directionLine" class="direction-line"></div>
+
+                    <canvas id="stcaCanvas" width="1920" height="1080"></canvas>
+                    <div id="stcaRoasterBox" class="roaster-box"></div>
+
+                    <canvas id="msawCanvas" width="1920" height="1080"></canvas>
+                    <div id="msawRoasterBox" class="roaster-box"></div>
+
+                    <div id="alertRoasterBox" class="roaster-box"></div>
+
+                </div>
+
+
+            </div>
+
+            <div class="menu-bar">
+                <button class="control-button" id="home">Home</button>
+                <button class="control-button" id="zoomOut"> - </button>
+                <input type="range" class="zoom-slider" id="zoomSlider" min="1" max="80" step="1" value="1">
+                <button class="control-button" id="zoomIn"> + </button>
+                <div class="dropdown">
+                    <select id="runwaySelector">
+                        <!-- Options from 01 to 36 -->
+                        <option value="19">01/19</option>
+                        <option value="20">02/20</option>
+                        <option value="21">03/21</option>
+                        <option value="22">04/22</option>
+                        <option value="23">05/23</option>
+                        <option value="24">06/24</option>
+                        <option value="25">07/25</option>
+                        <option value="26">08/26</option>
+                        <option value="27">09/27</option>
+                        <option value="28">10/28</option>
+                        <option value="29">11/29</option>
+                        <option value="30">12/30</option>
+                        <option value="31">13/31</option>
+                        <option value="32">14/32</option>
+                        <option value="33">15/33</option>
+                        <option value="34">16/34</option>
+                        <option value="35">17/35</option>
+                        <option value="36">18/36</option>
+                    </select>
+                </div>
+                <button id="changeRunway" class="control-button">RW</button>
+                <button id="SRAdistanceMarkers" class="control-button">SRA</button>
+                <!-- <button id="historyDots" class="control-button">History</button> -->
+                <button id="label" class="control-button">Label</button>
+                <button id="settings" class="control-button" onclick="toggleSettingsDialog()">⚙️</button>
+                <button id="mapping-table" class="control-button" onclick="toggleMappingDialog()">SEL[F6]</button>
+                <button id="pushToTalk" class="control-button inactive">Push to Talk</button>
+
+                <div id="statusBar" class="status-bar"></div> <!-- Status bar element -->
+            </div>
+
+        </div>
+
+
+        <div id="controlPanel">
+            <div class="tab">
+                <button class="tablinks active" onclick="openLogTab(event, 'aircraftControlPanel')">Aircraft Control
+                    Panel</button>
+                <button class="tablinks" onclick="openLogTab(event, 'commandLogs')">Log</button>
+                <button id="helpButton" class="help-button"
+                    style="position: absolute; right:5px; background-color: #007BFF; color: white; padding: 4px 8px; border-radius: 6px; cursor: pointer;"
+                    title="Help">?</button>
+
+            </div>
+
+            <div id="aircraftControlPanel" class="tabcontent" style="display: block;">
+
+            </div>
+
+            <div id="commandLogs" class="tabcontent">
+                <!-- All commands will be logged here-->
+
+            </div>
+        </div>
+
+
+        <!-- Dialog Boxes-->
+        <!-- Initial Aircraft Creation Dialog -->
+        <div id="initialAircraftDialog" class="dialog" style="display:none;">
+
+            <div class="dialog-header" id="exerciseDialogHeader">Initial Exercise Settings</div>
+            <div class="dialog-content">
+
+                <!-- Individual Aircraft Settings -->
+                <fieldset style="border-radius: 8px;">
+                    <legend style="font-weight: bold;">Individual Aircraft</legend>
+                    <div class="settings-row">
+                        <div>
+                            <label for="individualFighterInput">Fighter AC</label>
+                            <input type="number" id="individualFighterInput" min="0" max="10" value="0">
+                        </div>
+                        <div>
+                            <label for="individualTransportInput">Transport AC</label>
+                            <input type="number" id="individualTransportInput" min="0" max="10" value="0">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Formation Aircraft Settings -->
+                <fieldset style="border-radius: 8px;">
+                    <legend style="font-weight: bold;">Fighter Formation Aircraft</legend>
+                    <div class="settings-row">
+                        <div>
+                            <label for="fighterFormation2acInput">2AC</label>
+                            <input type="number" id="fighterFormation2acInput" min="0" max="10" value="0">
+                        </div>
+                        <div>
+                            <label for="fighterFormation3acInput">3AC</label>
+                            <input type="number" id="fighterFormation3acInput" min="0" max="10" value="0">
+                        </div>
+                        <div>
+                            <label for="fighterFormation4acInput">4AC</label>
+                            <input type="number" id="fighterFormation4acInput" min="0" max="10" value="0">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Create and Cancel buttons -->
+                <div class="settings-actions">
+                    <button id="createInitialAircraftButton" class="control-button">Create</button>
+                    <button id="cancelInitialAircraftButton" class="control-button">Cancel</button>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Manual Aircraft Creation Dialog -->
+        <div id="aircraftDialog" class="dialog" style="display:none;">
+            <div class="dialog-content">
+
+                <!-- Aircraft Information Fieldset -->
+                <fieldset style="border-radius: 8px;">
+                    <legend style="font-weight: bold;">Aircraft Creation</legend>
+
+                    <!-- Aircraft Type input -->
+                    <label for="aircraftTypeInput">Aircraft Type:</label>
+                    <div class="dropdown">
+                        <select id="aircraftTypeInput">
+                            <!-- Aircraft Type Options -->
+                            <option value="individualTransport">Transport Aircraft</option>
+                            <option value="individualFighter">Individual Fighter Aircraft</option>
+                            <option value="fighterFormation2ac">2 Aircraft Formation</option>
+                            <option value="fighterFormation3ac">3 Aircraft Formation</option>
+                            <option value="fighterFormation4ac">4 Aircraft Formation</option>
+                        </select>
+                    </div>
+
+                    <!-- Heading input -->
+                    <label for="headingInput">Heading (001-360):</label>
+                    <input type="number" id="headingInput" min="000" max="360" value="001" required>
+
+
+                </fieldset>
+
+
+                <!-- Create and Cancel buttons -->
+                <div>
+                    <button id="createAircraftButton" class="control-button">Create</button>
+                    <button id="cancelAircraftButton" class="control-button">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="mappingDialog" class="dialog mapping-dialog" style="display: none;">
+            <div class="dialog-header" id="mappingDialogHeader">Mapping Table</div>
+
+            <div class="dialog-content" style="padding: 1;">
+
+                <!-- Input Row (Fixed) -->
+                <table class="mapping-table">
+                    <tbody>
+                        <tr>
+                            <td style="width: 30%;"><input type="text" id="ssrInput" maxlength="4" placeholder="CODE" />
+                            </td>
+                            <td style="width: 55%;"><input type="text" id="callsignInput" placeholder="CALLSIGN" /></td>
+                            <td style="width: 15%;"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Scrollable Mapping List -->
+                <div class="mapping-scroll-container">
+                    <table class="mapping-table">
+                        <tbody id="mappingTableBody">
+                            <!-- New rows are appended here -->
+                        </tbody>
+                    </table>
+                </div>
+
+
+            </div>
+        </div>
+
+
+        <!-- Settings Dialog -->
+        <div id="settingsDialog" class="dialog settings-dialog" style="display: none;">
+            <div class="dialog-header" id="settingsDialogHeader">Radar Settings</div>
+            <div class="dialog-content">
+
+                <!-- Group Blip Settings and Transition Level side-by-side -->
+                <div class="fieldsets-wrapper">
+                    <!-- Blip Settings -->
+                    <fieldset style="border-radius: 8px;">
+                        <legend style="font-weight: bold;">Blip Settings</legend>
+                        <div class="settings-row">
+                            <div>
+                                <label for="historyDotCountSelect">History Dots</label>
+                                <select id="historyDotCountSelect">
+                                    <option value="0">Off</option>
+                                    <option value="10">10 dots</option>
+                                    <option value="15" selected>15 dots</option>
+                                    <option value="20">20 dots</option>
+                                    <option value="25">25 dots</option>
+                                    <option value="30">30 dots</option>
+                                    <option value="35">35 dots</option>
+                                    <option value="40">40 dots</option>
+                                    <option value="45">45 dots</option>
+                                    <option value="50">50 dots</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="speedVectorSelect">Speed Vector</label>
+                                <select id="speedVectorSelect">
+                                    <option value="0" selected>Off</option>
+                                    <option value="1">1 min</option>
+                                    <option value="2">2 min</option>
+                                    <option value="3">3 min</option>
+                                    <option value="4">4 min</option>
+                                    <option value="5">5 min</option>
+                                </select>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Transition Level Settings -->
+                    <fieldset style="border-radius: 8px;">
+                        <legend style="font-weight: bold;">Transition Level</legend>
+                        <div class="settings-row">
+                            <div>
+                                <label for="transitionLevelSelect">Transition Level</label>
+                                <select id="transitionLevelSelect">
+                                    <option value="50">FL 050</option>
+                                    <option value="60">FL 060</option>
+                                    <option value="70">FL 070</option>
+                                    <option value="80">FL 080</option>
+                                    <option value="90">FL 090</option>
+                                    <option value="100">FL 100</option>
+                                    <option value="110">FL 110</option>
+                                    <option value="120">FL 120</option>
+                                </select>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+
+                <!-- Group STCA and MSAW side by side -->
+                <div class="fieldsets-wrapper">
+                    <!-- STCA Settings -->
+                    <fieldset style="border-radius: 8px;">
+                        <legend style="font-weight: bold;">STCA Settings</legend>
+                        <div class="settings-row">
+                            <div>
+                                <label for="horizontalSeparationInput">Horizontal (NM)</label>
+                                <input type="number" id="horizontalSeparationInput" placeholder="H Sep (NM)" value="8">
+                            </div>
+                            <div>
+                                <label for="verticalSeparationInput">Vertical (ft)</label>
+                                <input type="number" id="verticalSeparationInput" placeholder="V Sep (ft)" value="1000">
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div>
+                                <label for="lookaheadSTCAInput">Time (sec)</label>
+                                <input type="number" id="lookaheadSTCAInput" placeholder="Time (sec)" value="120">
+                            </div>
+                            <div class="checkbox-wrapper">
+                                <label for="stcaToggle">Enable STCA</label>
+                                <input type="checkbox" id="stcaToggle">
+
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div>
+                                <label for="stcaExcludedHorizontalInput">STCA Airspace Radius (NM)</label>
+                                <input type="number" id="stcaExcludedHorizontalInput" value="10">
+                            </div>
+                            <div>
+                                <label for="stcaExcludedVerticalInput">STCA Airspace Ceiling (ft)</label>
+                                <input type="number" id="stcaExcludedVerticalInput" value="2000">
+                            </div>
+                        </div>
+
+                    </fieldset>
+
+                    <!-- MSAW Settings -->
+                    <fieldset style="border-radius: 8px;">
+                        <legend style="font-weight: bold;">MSAW Settings</legend>
+                        <div class="settings-row">
+                            <div>
+                                <label for="minimumAltitudeInput">Min Safe Alt (ft)</label>
+                                <input type="number" id="minimumAltitudeInput" value="2000">
+                            </div>
+                            <div>
+                                <label>
+                                    <p></p>
+                                </label>
+
+                            </div>
+                        </div>
+                        <div class="settings-row">
+
+                            <div>
+                                <label for="lookaheadMSAWInput">Time (sec)</label>
+                                <input type="number" id="lookaheadMSAWInput" placeholder="Time (sec)" value="120">
+                            </div>
+                            <div class="checkbox-wrapper">
+                                <label for="msawToggle">Enable MSAW</label>
+                                <input type="checkbox" id="msawToggle">
+                            </div>
+
+                        </div>
+                        <div class="settings-row">
+                            <div>
+                                <label for="msawExcludedHorizontalInput">MSAW Airspace Radius (NM)</label>
+                                <input type="number" id="msawExcludedHorizontalInput" value="10">
+                            </div>
+                            <div>
+                                <label for="msawExcludedVerticalInput">MSAW Airspace Ceiling (ft)</label>
+                                <input type="number" id="msawExcludedVerticalInput" value="20000">
+                            </div>
+                        </div>
+
+                    </fieldset>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="settings-actions">
+                    <button onclick="applySettings()">Apply</button>
+                    <button onclick="toggleSettingsDialog()">Close</button>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Help Dialog -->
+        <div id="helpDialog" class="help-dialog">
+            <h2>Help</h2>
+
+            <button id="closeHelpButton" class="control-button">Close</button>
+        </div>
+
+    </div>
+    <div id="controlStatusBar">
+        © For Feedback, please contact Deep Gulati.
+    </div>
+
+    <!-- Custom Right Click Context Menu -->
+    <ul id="radarContextMenu" class="context-menu" style="display: none;">
+        <li id="createAircraftContextMenu">Create Aircraft</li>
+    </ul>
+
+
+    <!-- Scripts -->
+    <script src="radar.js"></script>
+    <script src="settings.js"></script>
+    <script src="readme.js"></script>
+    <script src="aircraftCreation.js"></script>
+    <script src="functions.js"></script>
+    <script src="mappingtable.js"></script>
+    <script src="aircraft.js"></script>
+    <script src="commands.js"></script>
+    <script src="voiceFunctions.js"></script>
+    <script src="voiceCommands.js"></script>
+    <script src="pronounce.js"></script>
+    <script src="stca.js"></script>
+    <script src="msaw.js"></script>
+    <script src="features.js"></script>
+
+</body>
+
+</html>
