@@ -269,6 +269,11 @@
                         <line x1="22" y1="10" x2="10" y2="22" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
                     </svg>
                 </button>
+                <!-- PTT (Push-to-Talk) button — instructor/trainee only. Hold to transmit voice. -->
+                <button id="ptt-btn" class="hidden w-8 h-8 flex-shrink-0 items-center justify-center rounded-lg border border-slate-700/50 bg-slate-900/80 transition-all select-none touch-none"
+                        title="Hold to talk" style="touch-action:none">
+                    <i data-lucide="mic" class="w-4 h-4 text-slate-400"></i>
+                </button>
                 <!-- Legacy pill — kept as hidden; updateP2PStatusPill still references it safely -->
                 <div id="p2p-status-pill" class="hidden items-center gap-1 px-1.5 py-0.5 rounded-full border text-[7px] font-bold tracking-wide">
                     <div id="p2p-dot" class="w-1 h-1 rounded-full"></div>
@@ -773,6 +778,14 @@
         let traineeName = '';
         let traineeTargetInstructorId = '';
 
+        // ── Voice (Push-to-Talk) state ─────────────────────────────────
+        let localAudioStream = null;    // mic MediaStream (lazy-acquired once)
+        let voiceCall = null;           // active PeerJS MediaConnection
+        let remoteAudioEl = null;       // hidden <audio> element playing remote voice
+        let pttActive = false;          // true while actively transmitting
+        let micPermissionDenied = false;
+        let pttWired = false;
+
         // ─────────────────────────────────────────────────────────────
         // Generate 3-char alphanumeric short ID (no confusable chars)
         // ─────────────────────────────────────────────────────────────
@@ -859,6 +872,16 @@
                 });
             }
             // Trainee initiates connection in traineeConnect()
+
+            // Incoming voice call from the other peer — answer automatically
+            peer.on('call', async (call) => {
+                await ensureLocalAudioStream();
+                try { call.answer(localAudioStream || undefined); } catch (e) { console.warn('Answer call failed', e); }
+                voiceCall = call;
+                call.on('stream', (remoteStream) => attachRemoteAudio(remoteStream));
+                call.on('close', () => { if (voiceCall === call) voiceCall = null; updatePTTButtonUI(); });
+                call.on('error', (e) => console.warn('Voice call error', e));
+            });
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -938,6 +961,10 @@
                 startHeartbeat(role);
                 sendUserInfo();
                 updateUserNameDisplay();
+
+                // Trainee originates the voice call to the instructor (re-fires on every reconnect)
+                if (role === 'trainee') startVoiceCall(traineeTargetInstructorId);
+                updatePTTButtonUI();
 
                 p2pConn.on('data', (data) => {
                     handleP2PData(data, role);
@@ -1101,6 +1128,11 @@
             if (p2pConn) { try { p2pConn.close(); } catch(e){} }
             p2pConn = null;
             lastPingTime = Date.now(); // reset so timeout check won't re-fire immediately
+            // Tear down any live voice call and force PTT off
+            if (voiceCall) { try { voiceCall.close(); } catch(e){} voiceCall = null; }
+            pttActive = false;
+            if (localAudioStream) localAudioStream.getAudioTracks().forEach(t => t.enabled = false);
+            updatePTTButtonUI();
             updateP2PStatusPill('disconnected');
             if (role === 'trainee') {
                 updateTraineeExerciseStatus('disconnected');
@@ -1201,6 +1233,11 @@
                 const iconBtn = document.getElementById('p2p-icon-btn');
                 if (iconBtn) { iconBtn.classList.remove('hidden'); iconBtn.classList.add('flex'); }
                 updateP2PStatusPill(p2pConn && p2pConn.open ? 'connected' : 'waiting');
+
+                // Show and wire up the Push-to-Talk button; pre-acquire mic access
+                const pttBtn = document.getElementById('ptt-btn');
+                if (pttBtn) { pttBtn.classList.remove('hidden'); pttBtn.classList.add('flex'); wirePTTButton(); }
+                ensureLocalAudioStream();
             }
 
             // Show eye/blip toggle for standalone and trainee (each role's applyRoleUI handles it)
@@ -1241,6 +1278,7 @@
 
             // ── Drive new icon button ──────────────────────────────────
             updateP2PIconState(state);
+            updatePTTButtonUI();
 
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
@@ -1291,6 +1329,117 @@
             if (appRole !== 'trainee') return;
             if (p2pConn && p2pConn.open) return;
             traineeManualReconnect();
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // VOICE (PUSH-TO-TALK) — layered on top of the existing PeerJS peer.
+        // A single persistent MediaConnection carries the mic audio; the
+        // local track is enabled only while the PTT button is held so no
+        // renegotiation is needed for each press.
+        // ─────────────────────────────────────────────────────────────
+        async function ensureLocalAudioStream() {
+            if (localAudioStream) return localAudioStream;
+
+            // Mic access requires a secure context (HTTPS or localhost) — file:// and
+            // plain http:// pages never even get asked for permission, they just fail.
+            const isSecure = window.isSecureContext === true;
+            if (!isSecure || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                micPermissionDenied = true;
+                showRadarToast('⚠ Voice needs HTTPS — open this page via a secure link, not a local file');
+                updatePTTButtonUI();
+                return null;
+            }
+
+            try {
+                localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                // Muted by default — the track is only enabled while PTT is held
+                localAudioStream.getAudioTracks().forEach(t => t.enabled = false);
+                micPermissionDenied = false;
+            } catch (e) {
+                console.warn('Microphone access denied/unavailable:', e);
+                micPermissionDenied = true;
+                if (e && e.name === 'NotAllowedError') {
+                    showRadarToast('⚠ Microphone permission denied — enable it in browser settings');
+                } else if (e && e.name === 'NotFoundError') {
+                    showRadarToast('⚠ No microphone found on this device');
+                } else {
+                    showRadarToast('⚠ Microphone unavailable — voice disabled');
+                }
+            }
+            updatePTTButtonUI();
+            return localAudioStream;
+        }
+
+        function attachRemoteAudio(remoteStream) {
+            if (!remoteAudioEl) {
+                remoteAudioEl = document.createElement('audio');
+                remoteAudioEl.autoplay = true;
+                remoteAudioEl.setAttribute('playsinline', '');
+                remoteAudioEl.style.display = 'none';
+                document.body.appendChild(remoteAudioEl);
+            }
+            remoteAudioEl.srcObject = remoteStream;
+            remoteAudioEl.play().catch(() => {
+                // Autoplay may be blocked until a fresh tap on the page
+                showRadarToast('Tap anywhere to enable voice audio');
+                const resume = () => { remoteAudioEl.play().catch(() => {}); document.removeEventListener('click', resume); };
+                document.addEventListener('click', resume, { once: true });
+            });
+        }
+
+        async function startVoiceCall(remotePeerId) {
+            if (!remotePeerId || !peer) return;
+            await ensureLocalAudioStream();
+            if (!localAudioStream) return; // mic unavailable — stays voice-disabled
+            if (voiceCall) { try { voiceCall.close(); } catch (e) {} voiceCall = null; }
+            try {
+                voiceCall = peer.call(remotePeerId, localAudioStream);
+                voiceCall.on('stream', (remoteStream) => attachRemoteAudio(remoteStream));
+                voiceCall.on('close', () => { voiceCall = null; updatePTTButtonUI(); });
+                voiceCall.on('error', (e) => console.warn('Voice call error', e));
+            } catch (e) { console.warn('Failed to start voice call', e); }
+            updatePTTButtonUI();
+        }
+
+        function wirePTTButton() {
+            const btn = document.getElementById('ptt-btn');
+            if (!btn) return;
+            if (pttWired) { updatePTTButtonUI(); return; }
+            pttWired = true;
+            const start = (e) => { e.preventDefault(); pttSetActive(true); };
+            const end   = (e) => { e.preventDefault(); pttSetActive(false); };
+            btn.addEventListener('pointerdown', start);
+            btn.addEventListener('pointerup', end);
+            btn.addEventListener('pointerleave', end);
+            btn.addEventListener('pointercancel', end);
+            updatePTTButtonUI();
+        }
+
+        function pttSetActive(active) {
+            if (micPermissionDenied) { showRadarToast('⚠ Microphone unavailable — voice disabled'); return; }
+            if (active && !(p2pConn && p2pConn.open)) return; // no one to talk to
+            pttActive = active;
+            if (localAudioStream) localAudioStream.getAudioTracks().forEach(t => t.enabled = active);
+            updatePTTButtonUI();
+        }
+
+        function updatePTTButtonUI() {
+            const btn = document.getElementById('ptt-btn');
+            if (!btn) return;
+            const icon = btn.querySelector('i');
+            btn.classList.remove('border-red-500/70', 'bg-red-950/60', 'border-slate-700/50', 'bg-slate-900/80', 'opacity-40');
+            const connected = !!(p2pConn && p2pConn.open);
+            if (pttActive) {
+                btn.classList.add('border-red-500/70', 'bg-red-950/60');
+                if (icon) { icon.setAttribute('data-lucide', 'mic'); icon.className = 'w-4 h-4 text-red-400'; }
+            } else if (micPermissionDenied || !connected) {
+                btn.classList.add('border-slate-700/50', 'bg-slate-900/80', 'opacity-40');
+                if (icon) { icon.setAttribute('data-lucide', 'mic-off'); icon.className = 'w-4 h-4 text-slate-500'; }
+            } else {
+                btn.classList.add('border-slate-700/50', 'bg-slate-900/80');
+                if (icon) { icon.setAttribute('data-lucide', 'mic'); icon.className = 'w-4 h-4 text-slate-400'; }
+            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -1529,6 +1678,8 @@
         window.addEventListener('beforeunload', () => {
             stopHeartbeat();
             if (reconnectTimeout) clearTimeout(reconnectTimeout);
+            if (voiceCall) try { voiceCall.close(); } catch(e) {}
+            if (localAudioStream) try { localAudioStream.getTracks().forEach(t => t.stop()); } catch(e) {}
             if (p2pConn && p2pConn.open) try { p2pConn.close(); } catch(e) {}
             if (peer) try { peer.destroy(); } catch(e) {}
         });
