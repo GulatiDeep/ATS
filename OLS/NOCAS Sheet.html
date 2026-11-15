@@ -34,6 +34,8 @@
   button.ghost { background:transparent; color:var(--ink); border:1px solid var(--line); }
   button:disabled { background:#9aa7b4; cursor:default; }
   .actions { display:flex; gap:8px; margin-top:14px; }
+  .appx { display:flex; gap:8px; align-items:center; font-size:13px; color:var(--mut); margin-top:8px; } .appx input { width:auto; margin:0; } .appx[hidden] { display:none; }
+  .resBox .unitLn { font-size:13px; } details.refDet { margin:4px 0; } details.refDet summary { cursor:pointer; font-size:13px; color:var(--mut); }
   .actions button { flex:1; }
   #printBtn:not(:disabled) { background:#2e7d32; }
   #globeBtn { width:100%; margin-top:14px; }
@@ -139,8 +141,9 @@
     <h2>Proposal</h2>
     <p class="hint">Enter the details of proposal: a single location, a building outline using corners in perimeter order, or a transmission line using mast locations.</p>
     <div id="obstacleGroups"></div>
-    <div id="nocasHold" hidden><div id="nocasBox"><label for="nocas">NOCAS ID</label><input id="nocas" value="" autocomplete="off"></div></div>
+    <div id="nocasHold" hidden><div id="nocasBox"><label for="nocas">NOCAS ID</label><input id="nocas" value="2026/10WG/B/84" autocomplete="off"></div></div>
     <div class="actions"><button type="button" id="calcBtn">Calculate</button><button type="button" id="printBtn" disabled>Print calculation steps</button></div>
+    <label id="appxWrap" class="appx" hidden><input type="checkbox" id="chkAppx"> Add the full calculation of every corner / mast as an appendix to the printed sheet</label>
     <div id="obsMsg"></div>
     <div id="obsResult"></div>
     <button type="button" id="globeBtn" class="ghost">Plot the Proposal to Visualise</button>
@@ -1400,8 +1403,9 @@
         const rw = G.runwayNames[n - 1], oca = S.oca[n - 1], w2m = S.w2m[n - 1], w2f = S.w2f[n - 1], top = obsPt.top, Le = S.intLen[n - 1];
         const o = sraPos(n, lat, lon), s = o.s, Pp = o.P, A = o.A, along = o.along, vi = o.vi;
         const area = s < 0 ? (s >= -finalLen ? 'Final Approach' : null) : s <= S.soc ? 'Initial Missed Approach' : (s - S.soc <= Le ? 'Intermediate Missed Approach' : null);
-        // Final Approach: W/2 interpolated in a straight line between W/2 at the MAPt and W/2 at the FAF (each from the SRE rule); missed approach: 15° splay from the MAPt
-        const hw = area === 'Final Approach' ? w2m + (w2f - w2m) * (-s / finalLen) : w2m + s * t15, inside = !!area && Pp <= hw;
+        // Final Approach: W/2 = 1900 m + 0.1 D (PANS-OPS 6.4.3), D = distance of the SRE antenna from the ERCL point abeam the proposed location; missed approach: 15° splay from the MAPt
+        const gS = S.geo[n - 1], Ls = Math.abs(along - gS.B), Ds = Math.hypot(gS.P, Ls);
+        const hw = area === 'Final Approach' ? S.w2base + S.w2k * Ds : w2m + s * t15, inside = !!area && Pp <= hw;
         const inter = area === 'Intermediate Missed Approach', gain = inter ? S.slope * (s - S.soc) : 0, perm = inter ? oca + gain - S.MOCN : oca - S.MOCF;
         // work-sheet lines (same style as the other surfaces); <!--sraFig:…--> marks where the position figure and the side view go
         const ln = (t) => `<div class="calc">${t}</div>`, out = along >= 0, ref = out ? S.axis[n - 1] : (S.axis[n - 1] + 180) % 360, sdR = ((vi.brg - ref + 540) % 360) - 180;
@@ -1424,7 +1428,10 @@
           if (area === 'Final Approach') L.push(
             ln(`Length of the Final Approach segment (MAPt to FAF) = ${f(Fm)} m − ${f(M)} m = <b>${f(finalLen)} m</b>`),
             ln(`Distance of the proposed location from the MAPt towards the FAF (x) = ${f(D2)} m − ${f(M)} m = <b>${f(xd)} m</b>`),
-            ln(`W/2 at the proposed location = W/2 (MAPt) + [W/2 (FAF) − W/2 (MAPt)] × x ÷ length = ${f(w2m)} m + (${f(w2f)} − ${f(w2m)}) m × ${f(xd)} ÷ ${f(finalLen)} = <b>${f(hw)} m</b> (W/2 grows evenly from the MAPt to the FAF)`));
+            ln(`Distance of the SRE antenna from the ERCL (P) = <b>${f(gS.P)} m</b>, and the point abeam the SRE is ${f(Math.abs(gS.B))} m from ${rw} DB ${gS.B < 0 ? 'on the runway side' : 'on the approach side'} (B) (from the SRA basic calculations)`),
+            ln(`Distance along the ERCL from the point abeam the SRE to the point abeam the proposed location (L) = ${gS.B < 0 ? `${f(D2)} m + ${f(-gS.B)} m` : along >= gS.B ? `${f(D2)} m − ${f(gS.B)} m` : `${f(gS.B)} m − ${f(D2)} m`} = <b>${f(Ls)} m</b>`),
+            ln(`Distance of the SRE antenna from the ERCL abeam the proposed location (D) = √(P² + L²) = √(${f(gS.P)}² + ${f(Ls)}²) = <b>${f(Ds)} m</b>${Ds > 37000 ? ' (more than the maximum of 37000 m)' : ''}`),
+            ln(`W/2 at the proposed location = 1900 m + 0.1 × D = 1900 m + 0.1 × ${f(Ds)} m = <b>${f(hw)} m</b> (PANS-OPS, Doc 8168 Vol II, 6.4.3)`));
           else L.push(ln(`W/2 at the proposed location = ${f(w2m)} m + (${f(xd)} m × tan(${ag(15, 0)})) = <b>${f(hw)} m</b> (the missed approach area splays ${ag(15, 0)} each side from the MAPt)`));
           L.push(ln(inside ? `Since ${f(Pp)} m (D1) is less than ${f(hw)} m (W/2), the proposed location lies within the ${area} segment` : `Since ${f(Pp)} m (D1) is more than ${f(hw)} m (W/2), the proposed location lies outside the ${area} segment`));
         }
@@ -1496,17 +1503,25 @@
       lastResults.push(R);
     }));
     lastResult = lastResults[0] || null;
-    $('obsResult').innerHTML = lastResults.map(R => {
+    const rwyOnce = `<table class="refTbl"><tr><th>Runway length (m)</th><th>Magnetic orientation ${G.runwayNames[0]} (°)</th><th>Magnetic orientation ${G.runwayNames[1]} (°)</th></tr>` +
+      `<tr><td><input class="rwyIn" data-f="L" type="number" step="0.01" min="100" value="${f(G.Lloc)}"></td><td><input class="rwyIn" data-f="o1" type="text" inputmode="decimal" value="${dg(G.brgMag, 0)}"></td><td><input class="rwyIn" data-f="o2" type="text" inputmode="decimal" value="${dg(G.brgRMag, 0)}"></td></tr></table>`;
+    const oneBox = (R) => {
       const label = R.kind === 'building' ? `Corner ${R.pointIndex + 1}` : R.kind === 'line' ? `Mast ${R.pointIndex + 1}` : 'Location';
       const color = R.cleared ? '#2e7d32' : '#e53935';
-      const rwyTbl = `<table class="refTbl"><tr><th>Runway length (m)</th><th>Magnetic orientation ${G.runwayNames[0]} (°)</th><th>Magnetic orientation ${G.runwayNames[1]} (°)</th></tr>` +
-        `<tr><td><input class="rwyIn" data-f="L" type="number" step="0.01" min="100" value="${f(G.Lloc)}"></td><td><input class="rwyIn" data-f="o1" type="text" inputmode="decimal" value="${dg(G.brgMag, 0)}"></td><td><input class="rwyIn" data-f="o2" type="text" inputmode="decimal" value="${dg(G.brgRMag, 0)}"></td></tr></table>`;
-      const refTbl = rwyTbl + `<table class="refTbl"><tr><th colspan="3">Distances from reference points (edit a bearing or distance to override)</th></tr><tr><th>Reference</th><th>Bearing (°)</th><th>Distance (m)</th></tr>` +
+      const refTbl = `<table class="refTbl"><tr><th colspan="3">Distances from reference points (edit a bearing or distance to override)</th></tr><tr><th>Reference</th><th>Bearing (°)</th><th>Distance (m)</th></tr>` +
         R.locs.map((r, i) => `<tr><td>${[G.runwayNames[0], G.runwayNames[1], 'ARP', 'SRE'][i]}</td><td><input class="refIn" type="text" inputmode="decimal" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="b" value="${dg(r.brg)}"></td><td><input class="refIn" type="number" step="0.01" min="0" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="d" value="${f(r.dist)}"></td></tr>`).join('') + '</table>';
       const headline = R.cleared ? (R.hits.length ? 'CLEARED' : 'CLEARED - outside all plotted OLS surfaces') : 'NOT CLEARED';
       const limit = R.gov ? `Maximum permitted: <b>${f(R.gov.amsl)} m AMSL</b> (governing: ${R.gov.name})` : 'No OLS height limit applies here.';
       return `<div style="padding:8px 0">${refTbl}<fieldset class="resBox" style="border-color:${color}"><legend style="color:${color}">Result</legend><b>${escapeHtmlSimple(R.name)} - ${label}</b>: ${dms(R.lat, true)}, ${dms(R.lon, false)} · top ${f(R.top)} m AMSL<br><span style="color:${color};font-weight:700">${headline}</span><br>${limit}${R.hits.length ? '<br>' + R.hits.filter(h => h.infringes).map(h => `${h.name}: exceeds by ${f(-h.margin)} m`).join('<br>') : ''}</fieldset></div>`;
-    }).join('');
+    };
+    const groupBox = (Rs) => { const I = groupInfo(Rs), c = I.crit, color = I.cleared ? '#2e7d32' : '#e53935';
+      const det = Rs.map(R => `<details class="refDet"><summary>Distances from reference points – ${I.lab(R)} (edit a bearing or distance to override)</summary><table class="refTbl"><tr><th>Reference</th><th>Bearing (°)</th><th>Distance (m)</th></tr>` +
+        R.locs.map((r, i) => `<tr><td>${[G.runwayNames[0], G.runwayNames[1], 'ARP', 'SRE'][i]}</td><td><input class="refIn" type="text" inputmode="decimal" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="b" value="${dg(r.brg)}"></td><td><input class="refIn" type="number" step="0.01" min="0" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="d" value="${f(r.dist)}"></td></tr>`).join('') + '</table></details>').join('');
+      const lines = Rs.map(R => `<div class="unitLn" style="color:${R.cleared ? '#2e7d32' : '#e53935'}">${I.lab(R)}${R === c ? ' (critical)' : ''}: top ${f(R.top)} m · ${R.gov ? `max ${f(R.gov.amsl)} m AMSL (${R.gov.name}) · ${R.cleared ? 'margin ' + f(I.mg(R)) + ' m' : 'exceeds by ' + f(-I.mg(R)) + ' m'}` : 'no OLS limit'}</div>`).join('');
+      const gov = c.gov ? `Governing: <b>${I.lab(c)}</b> – maximum permitted <b>${f(c.gov.amsl)} m AMSL</b> (${c.gov.name})${I.cleared ? ', margin ' + f(I.mg(c)) + ' m' : ', exceeds by ' + f(-I.mg(c)) + ' m'}` : 'No OLS height limit applies at any ' + I.unit.toLowerCase() + '.';
+      return `<div style="padding:8px 0">${det}<fieldset class="resBox" style="border-color:${color}"><legend style="color:${color}">Result</legend><b>${escapeHtmlSimple(Rs[0].name)} – ${I.line ? 'Transmission Line' : 'Building'}, ${I.n} ${I.units}</b><br><span style="color:${color};font-weight:700">${I.cleared ? 'CLEARED' : 'NOT CLEARED'}</span><br>${gov}${lines}</fieldset></div>`; };
+    const gsR = resultGroups(); $('appxWrap').hidden = !gsR.some(Rs => Rs.length > 1 && Rs[0].kind !== 'single');
+    $('obsResult').innerHTML = rwyOnce + gsR.map(Rs => Rs.length > 1 && Rs[0].kind !== 'single' ? groupBox(Rs) : oneBox(Rs[0])).join('');
     $('printBtn').disabled = false;
     $('obsResult').querySelectorAll('.refIn').forEach(el => el.addEventListener('change', onRefOverride));
     $('obsResult').querySelectorAll('.rwyIn').forEach(el => el.addEventListener('change', onRwyOverride));
@@ -1833,11 +1848,11 @@
       if (!app) {   // runway seen across: a short black block at the centre line, strip edge marked
         g += `<rect x="${(X(0) - 5).toFixed(1)}" y="${(Y(E) - 4).toFixed(1)}" width="10" height="8" fill="#111"/>` + svgTx(X(0) - 9, Y(E) + 4, 'Runway', { fs: 10, a: 'end' });
         g += ln([0, E], [edge, E], '#555', 2) + (y > edge * 1.2 && !T.sl ? svgTx((X(0) + X(edge)) / 2 + 8, Y(E) - 6, 'Runway strip', { fs: 10, c: '#555' }) : '');   // no label when the bar stands in the strip
-      } else g += ln([x0, z0], [edge, z0], BC, 3) + svgTx(X(x0) + 4, Y(z0) - 7, `${bName} (${f(z0)} m)`, { a: 'start', fs: 10, c: BC }) + svgTx(X(0), Y(E) + 18, T.n ? 'ERCL' : 'RCL', { fs: 10 });
+      } else g += ln([x0, z0], [edge, z0], BC, 3) + svgTx(X(x0) + 4, Y(z0) - 7, `${bName} (${f(z0)} m)`, { a: 'start', fs: 10, c: BC }) + (Math.abs(Y(E) + 18 - (H - 30)) < 14 ? '' : svgTx(X(0), Y(E) + 18, T.n ? 'ERCL' : 'RCL', { fs: 10 }));
       g += ln([edge, z0], [xT, top45], TC, 3) + ln([xT, top45], [xr, top45], IHSc, 3);
       g += svgTx(X(xT) + 6, Y(top45) - 7, `IHS 45 m (${f(top45)} m)`, { a: 'start', fs: 10, c: IHSc });
       { const t = [0.3, 0.6, 0.85, 0.15].map(k => edge + k * (xT - edge)).find(u => Math.abs(X(u) - X(y)) > 90) || edge + 0.6 * (xT - edge); g += svgTx(X(t) - 4, Y(z0 + sl * (t - edge)) - 6, `${tName.replace(' Surface', '')} ${f(sl * 100, 1)}% (${T.sl ? '1:3' : '1:7'})`, { a: 'end', fs: 10, c: TC }); }
-      [[0, T.n ? '0' : '0 (RCL)'], [edge, `${f(edge)} m`], [xT, `${f(xT)} m`]].forEach(([u, t]) => { g += ln([u, y0], [u, Math.max(E, z0)], '#bbb', 1, '2 3') + svgTx(X(u), H - 30, t, { fs: 10, c: '#555' }); });
+      [[0, T.n ? (app && Math.abs(Y(E) + 18 - (H - 30)) < 14 ? '0 (ERCL)' : '0') : (app && Math.abs(Y(E) + 18 - (H - 30)) < 14 ? '0 (RCL)' : '0 (RCL)')], [edge, `${f(edge)} m`], [xT, `${f(xT)} m`]].forEach(([u, t]) => { g += ln([u, y0], [u, Math.max(E, z0)], '#bbb', 1, '2 3') + svgTx(X(u), H - 30, t, { fs: 10, c: '#555' }); });
       g += ln([y, base], [y, top], col, 4) + `<circle cx="${X(y).toFixed(1)}" cy="${Y(top).toFixed(1)}" r="3.5" fill="${col}"/>`;
       g += `<line x1="${(X(y) - 14).toFixed(1)}" y1="${Y(lim).toFixed(1)}" x2="${(X(y) + 14).toFixed(1)}" y2="${Y(lim).toFixed(1)}" stroke="${RD}" stroke-width="2.5"/>`;
       { const tM = `Max permitted ${f(lim)} m`, tP = `Proposed top ${f(top)} m`, wM = tM.length * 6.2, wP = tP.length * 6.2, left = X(y) - 20 - Math.max(wM, wP) > 6 && X(y) - X(0) > 170;
@@ -1858,18 +1873,19 @@
       const { BL, RD, GR, OR } = C_, L = G.Lloc, O = R.O, S = isTO ? G.TO : G.APP, hwF = isTO ? G.toHalf : G.halfW, maxLen = isTO ? G.TO.len : 15000;
       const thr = n === 1 ? G.a : G.b, dir = n === 1 ? -1 : 1, dE = O.x - thr.x, dN = O.y - thr.y, along = dir * (dE * G.ux + dN * G.uy), lat = dE * (-G.uy) + dN * G.ux, v = n === 1 ? lat : -lat;
       const x = along - S.dist, hw = hwF(x), Lc = Math.min(maxLen, Math.max(x * 1.3, x + 600, 800)), sg = v >= 0 ? 1 : -1;
+      const vMin = 0.18 * Math.max(hw, S.inner / 2), vd = Math.abs(v) < vMin ? sg * vMin : v, exag = vd !== v;   // drawn offset of the proposed location
       const ds = []; for (let i = 0; i <= 24; i++) ds.push(Lc * i / 24); if (isTO) { const cap = (G.TO.maxW / 2 - G.TO.inner / 2) / G.TO.div; if (cap < Lc) ds.push(cap); ds.sort((p, q) => p - q); }
       const funnel = [...ds.map(d => [S.dist + d, hwF(d)]), ...ds.slice().reverse().map(d => [S.dist + d, -hwF(d)])];
       const col = sf.infringes ? RD : GR, fc = isTO ? '#f06292' : '#ffa726', nm = isTO ? 'Take-off Climb Surface' : 'Approach Surface';
       // θ exactly as in the text: difference of the two (magnetic) bearings, rounded the same way
       const brg = (Math.atan2(dE, dN) / DEG + 360) % 360, ax = ((Math.atan2(G.ux, G.uy) / DEG) + (n === 1 ? 180 : 0) + 360) % 360, sdA = ((brg - ax + 540) % 360) - 180, th = (sdA >= 0 ? angDiff(magB(brg), magB(ax), 2, 0) : angDiff(magB(ax), magB(brg), 0, 2)).v;
       curAz = n === 1 ? (azLocal() + 180) % 360 : azLocal();
-      return frameSvg([{ k: 'poly', c: fc, pts: funnel }, { k: 'rwy', u1: -Math.min(L, Math.max(300, 0.2 * (S.dist + Lc))), u2: 0, real: true }, { k: 'pt', u: 0, v: 0, c: '#000', lbl: `DB${n}` },
+      return frameSvg([{ k: 'linear' }, { k: 'vscale', f: 2 }, { k: 'poly', c: fc, pts: funnel }, { k: 'rwy', u1: -Math.min(L, Math.max(300, 0.2 * (S.dist + Lc))), u2: 0, real: true }, { k: 'pt', u: 0, v: 0, c: '#000', lbl: `DB${n}` },
         { k: 'ln', u1: S.dist, v1: -S.inner / 2, u2: S.dist, v2: S.inner / 2, c: '#000', w: 2.5, block: true },
-        { k: 'ln', u1: 0, v1: 0, u2: along, v2: v, c: BL, w: 1.5, lbl: `d = ${f(Math.hypot(dE, dN))} m` }, { k: 'ln', u1: 0, v1: 0, u2: along, v2: 0, c: GR, w: 3, lbl: `D2 = ${f(along)} m` },
-        { k: 'ln', u1: along, v1: 0, u2: along, v2: v, c: RD, d: '5 3', w: 2.5, lbl: `D1 = ${f(Math.abs(lat))} m` }, { k: 'ln', u1: along, v1: 0, u2: along, v2: -sg * hw, c: OR, w: 2.5, lbl: `W/2 = ${f(hw)} m` },
-        { k: "arc", to: [along, v], c: '#6d4c41', lbl: `θ = ${ag(th)}` }, { k: 'pt', u: along, v, c: col, lbl: 'PROPOSED LOCATION' }],
-        [[fc, nm], ['#111', 'Runway']], '');
+        { k: 'ln', u1: 0, v1: 0, u2: along, v2: vd, c: BL, w: 1.5, lbl: `d = ${f(Math.hypot(dE, dN))} m` }, { k: 'ln', u1: 0, v1: 0, u2: along, v2: 0, c: GR, w: 3, lbl: `D2 = ${f(along)} m` },
+        { k: 'ln', u1: along, v1: 0, u2: along, v2: vd, c: RD, d: '5 3', w: 2.5, lbl: `D1 = ${f(Math.abs(lat))} m` }, { k: 'ln', u1: along, v1: 0, u2: along, v2: -sg * hw, c: OR, w: 2.5, lbl: `W/2 = ${f(hw)} m` },
+        { k: "arc", to: [along, vd], c: '#6d4c41', lbl: `θ = ${ag(th)}` }, { k: 'pt', u: along, v: vd, c: col, lbl: 'PROPOSED LOCATION' }],
+        [[fc, nm], ['#111', 'Runway'], ...(exag ? [['#fff', 'D1 drawn larger for clarity']] : [])], '');
     } catch (err) { return ''; }
   }
   // Side view (profile) of a sloping surface: o = { x, segs:[[len, slope]], base, baseLbl, startLbl, top, lim, xLbl, maxLen }
@@ -1923,7 +1939,7 @@
           const t = [0.5, 0.3, 0.7, 0.15, 0.88].map(k => a + (b - a) * k).find(u => Math.abs(X(u) - X(D2)) > 200 && X(b) - X(a) > 50);
           // label just above-left of the point on a rising line (the line is lower there), centred above a level one
           if (t !== undefined) g += sl > 0 ? svgTx(X(t) - 4, Y(z(t)) - 6, `${+(sl * 100).toFixed(1)}% (1:${Math.round(1 / sl)})`, { a: 'end', fs: 10, c: SC }) : svgTx(X(t), Y(z(t)) - 7, 'Level', { fs: 10, c: SC });
-          if (d0 < xr) g += ln([d0, y0], [d0, z(d0)], '#bbb', 1, '2 3') + (X(d0) - X(S.dist) > 115 ? svgTx(X(d0), H - 30, `x = ${f(d0 - S.dist, 0)} m`, { fs: 10, c: '#555' }) : ''); }); }
+          if (d0 < xr) g += ln([d0, y0], [d0, z(d0)], '#bbb', 1, '2 3') + (X(d0) - X(S.dist) > 155 ? svgTx(X(d0), H - 30, `x = ${f(d0 - S.dist, 0)} m`, { fs: 10, c: '#555' }) : ''); }); }
       // proposed location: bar from site elevation to top, red mark at the limit, labels beside the marks
       g += ln([D2, base], [D2, top], col, 4) + `<circle cx="${X(D2).toFixed(1)}" cy="${Y(top).toFixed(1)}" r="3.5" fill="${col}"/>`;
       g += `<line x1="${(X(D2) - 14).toFixed(1)}" y1="${Y(lim).toFixed(1)}" x2="${(X(D2) + 14).toFixed(1)}" y2="${Y(lim).toFixed(1)}" stroke="${RD}" stroke-width="2.5"/>`;
@@ -1965,7 +1981,7 @@
       g += ln([x0, E + 45], [Ri, E + 45], IHSc, 3) + ln([Ri, E + 45], [Rc, E + 150], CONc, 3);
       g += isO ? ln([Rc, E + 150], [xr, E + 150], OHc, 3)
           // OHS label: just after the conical top if there is room before the bar, else at the right end, else raised above the limit label row
-          + (X(d) - X(Rc) > 230 ? svgTx(X(Rc) + 8, Y(E + 150) - 7, `OHS 150 m (${f(E + 150)} m)`, { a: 'start', fs: 10, c: OHc })
+          + (X(d) - X(Rc) > 300 ? svgTx(X(Rc) + 8, Y(E + 150) - 7, `OHS 150 m (${f(E + 150)} m)`, { a: 'start', fs: 10, c: OHc })
             : X(d) < 470 ? svgTx(632, Y(E + 150) - 7, `OHS 150 m (${f(E + 150)} m)`, { a: 'end', fs: 10, c: OHc })
             : svgTx(X(Rc) + 8, Y(E + 150) - 22, `OHS 150 m (${f(E + 150)} m)`, { a: 'start', fs: 10, c: OHc }))
         : ln([Rc, E + 150], [xr, E + 150], '#bbb', 1, '3 3');
@@ -2035,16 +2051,23 @@
       const ln = (a, b, c, w, dash) => `<line x1="${X(a[0]).toFixed(1)}" y1="${Y(a[1]).toFixed(1)}" x2="${X(b[0]).toFixed(1)}" y2="${Y(b[1]).toFixed(1)}" stroke="${c}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
       let g = ln([x0, eB], [xr, eB], '#888', 1, '4 3');
       g += `<rect x="${X(0).toFixed(1)}" y="${(Y((en + eo) / 2) - 4).toFixed(1)}" width="${(X(L) - X(0)).toFixed(1)}" height="8" fill="#111"/><line x1="${(X(0) + 3).toFixed(1)}" y1="${Y((en + eo) / 2).toFixed(1)}" x2="${(X(L) - 3).toFixed(1)}" y2="${Y((en + eo) / 2).toFixed(1)}" stroke="#fff" stroke-width="1" stroke-dasharray="4 3"/>`;
-      g += svgTx(X(0), Y(en) + 18, `DB${n} DB`, { fs: 10 }) + svgTx(X(L), Y(eo) + 18, `DB${o} DB`, { fs: 10 }) + svgTx((X(0) + X(Math.min(L, sBL))) / 2, Y((en + eo) / 2) - 8, `Runway (landing on DB${n})`, { fs: 10 });
+      const dbY = (e) => Math.abs(Y(e) + 18 - (H - 30)) < 14 ? Y(e) - 10 : Y(e) + 18;   // clear of the x-labels on the bottom row
+      g += svgTx(X(0), dbY(en), `DB${n} DB`, { fs: 10 }) + svgTx(X(L), dbY(eo), `DB${o} DB`, { fs: 10 }) + svgTx((X(0) + X(Math.min(L, sBL))) / 2, Y((en + eo) / 2) - 8, `Runway (landing on DB${n})`, { fs: 10 });
       g += ln([sBL, eB], [sBL + xbMax, top45], BLc, 3) + ln([sBL + xbMax, top45], [xr, top45], IHSc, 3) + ln([sBL, y0], [sBL, eB], '#bbb', 1, '2 3') + ln([sBL + xbMax, y0], [sBL + xbMax, top45], '#bbb', 1, '2 3');
       g += svgTx(X(sBL), H - 30, `x = 0 (inner edge, ${f(sBL, 0)} m)`, { a: 'start', fs: 10, c: '#555' }) + svgTx(X(sBL + xbMax), H - 30, `x = ${f(xbMax)} m`, { fs: 10, c: '#555' });
-      { const t = Math.abs(X(sBL + 0.3 * xbMax) - X(aN)) > 90 ? 0.3 : 0.7; g += svgTx(X(sBL + t * xbMax) - 4, Y(eB + OF.blSlope * t * xbMax) - 6, `Balked Landing ${f(OF.blSlope * 100, 2)}%`, { a: 'end', fs: 10, c: BLc }); }
       g += X(sBL + xbMax) + 110 < 632 ? svgTx(X(sBL + xbMax) + 6, Y(top45) - 7, `IHS 45 m (${f(top45)} m)`, { a: 'start', fs: 10, c: IHSc }) : svgTx(632, Y(top45) + 14, `IHS 45 m (${f(top45)} m)`, { a: 'end', fs: 10, c: IHSc });
       g += ln([aN, base], [aN, top], col, 4) + `<circle cx="${X(aN).toFixed(1)}" cy="${Y(top).toFixed(1)}" r="3.5" fill="${col}"/>` + `<line x1="${(X(aN) - 14).toFixed(1)}" y1="${Y(lim).toFixed(1)}" x2="${(X(aN) + 14).toFixed(1)}" y2="${Y(lim).toFixed(1)}" stroke="${RD}" stroke-width="2.5"/>`;
       { const tM = `Max permitted ${f(lim)} m`, tP = `Proposed top ${f(top)} m`, wM = tM.length * 6.2, wP = tP.length * 6.2, left = X(aN) - 20 - Math.max(wM, wP) > 6;
         let yM = Y(lim) + 3.5, yP = Y(top) + 3.5; if (Math.abs(yM - yP) < 14) { const m = (yM + yP) / 2, s = yP >= yM ? 1 : -1; yP = m + s * 7; yM = m - s * 7; }
         const lab = (t, w, yy, c) => { const xx = left ? X(aN) - 18 : X(aN) + 18, xa = left ? xx - w - 2 : xx - 2; return `<rect x="${xa.toFixed(1)}" y="${(yy - 10).toFixed(1)}" width="${(w + 4).toFixed(1)}" height="13" fill="#fff"/>` + svgTx(xx, yy, t, { a: left ? 'end' : 'start', c }); };
-        g += lab(tM, wM, yM, RD) + lab(tP, wP, yP, col); }
+        g += lab(tM, wM, yM, RD) + lab(tP, wP, yP, col);
+        const tS = `Balked Landing ${f(OF.blSlope * 100, 2)}%`, wS = tS.length * 6.2, lx0 = left ? X(aN) - 20 - Math.max(wM, wP) : X(aN) - 4, lx1 = left ? X(aN) + 4 : X(aN) + 20 + Math.max(wM, wP);
+        const clear = (k) => { const xs = X(sBL + k * xbMax) - 4, ys = Y(eB + OF.blSlope * k * xbMax) - 6; const rx = (X(0) + X(Math.min(L, sBL))) / 2, rw2 = `Runway (landing on DB${n})`.length * 3.1 + 4, ry = Y((en + eo) / 2) - 8;
+          return !(xs > lx0 && xs - wS < lx1 && (Math.abs(ys - yM) < 14 || Math.abs(ys - yP) < 14)) && !(xs > rx - rw2 && xs - wS < rx + rw2 && Math.abs(ys - ry) < 14)
+            && (() => { const tI = `IHS 45 m (${f(top45)} m)`, wI = tI.length * 6.2, rgt = X(sBL + xbMax) + 110 < 632, ix0 = rgt ? X(sBL + xbMax) + 6 : 632 - wI, iy = rgt ? Y(top45) - 7 : Y(top45) + 14;
+              return !(xs > ix0 && xs - wS < ix0 + wI && Math.abs(ys - iy) < 14); })(); };
+        const t = [Math.abs(X(sBL + 0.3 * xbMax) - X(aN)) > 90 ? 0.3 : 0.7, 0.3, 0.7, 0.5, 0.15, 0.85].find(clear);
+        if (t !== undefined) g += svgTx(X(sBL + t * xbMax) - 4, Y(eB + OF.blSlope * t * xbMax) - 6, tS, { a: 'end', fs: 10, c: BLc }); }
       g += svgTx(Math.min(X(aN), 632), H - 14, `x = ${f(sf.ofz.xb)} m from the inner edge`, { a: X(aN) > 470 ? 'end' : 'middle', fs: 10, c: '#111' });
       const leg = [['#111', 'Runway'], [BLc, 'Balked Landing Surface'], [IHSc, 'Inner Horizontal Surface'], [col, 'Proposed location']];
       let out = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H + 8 + legRows(leg, W) * 16 + 8}" style="width:100%;height:auto;background:#fff;border:1px solid #9aa5b1;margin:4px 0">` + g;
@@ -2103,7 +2126,16 @@
   //  - a point very close to the centre line is pushed sideways (distances across the centre line are enlarged
   //    smoothly; the order of everything across the line is kept, so inside / outside stays correct), and
   //  - labels are placed so they never overlap each other or the points; a moved label gets a thin leader line.
+  // building / transmission line sheets: all corners (masts) are drawn in the plan figures; GRP = { list, ref } is set only while such a sheet is built
+  let GRP = null;
   function frameSvg(els, legend, note) {
+    if (GRP && GRP.list.length > 1) { const anc = els.find(e => e.k === 'pt' && /PROPOSED/.test(e.lbl || ''));
+      if (anc) { const a2 = curAz * DEG, s2 = Math.sin(a2), c2 = Math.cos(a2), O0 = GRP.ref.O, line = GRP.list[0].kind === 'line', unit = line ? 'Mast' : 'Corner';
+        const uv = (R) => { const e = R.O.x - O0.x, n = R.O.y - O0.y; return [anc.u + e * s2 + n * c2, anc.v + e * c2 - n * s2]; }, P = GRP.list.map(uv);
+        const extra = line ? P.slice(1).map((p, i) => ({ k: 'ln', u1: P[i][0], v1: P[i][1], u2: p[0], v2: p[1], c: '#f9a825', w: 2 })) : [{ k: 'poly', pts: P, c: '#ef6c00' }];
+        GRP.list.forEach((R, i) => { if (R !== GRP.ref) extra.push({ k: 'pt', u: P[i][0], v: P[i][1], c: R.cleared ? C_.GR : C_.RD, lbl: '' }); });
+        els = [...extra, ...els.map(e => e === anc ? Object.assign({}, e, { lbl: e.lbl + ' (' + unit + ' ' + (GRP.ref.pointIndex + 1) + ')' }) : e)];
+        legend = [...legend, [line ? '#f9a825' : '#ef6c00', (line ? 'Transmission line – all ' : 'Building – all ') + GRP.list.length + (line ? ' masts' : ' corners')]]; } }
     const az = curAz * DEG, sA = Math.sin(az), cA = Math.cos(az), plotH = (els.find(e => e.k === 'size') || { h: 300 }).h;
     const bounds = (fv) => {
       const en = (u, v) => { const w = fv(v); return [u * sA + w * cA, u * cA - w * sA]; }, pts = [];
@@ -2121,7 +2153,7 @@
     if (vs.length) {
       const m = Math.min(...vs);
       const stripH = Math.min(Infinity, ...els.filter(e => e.k === "strip").map(e => e.h)), capped = Number.isFinite(stripH);   // the runway strip may widen at most 2.5 times
-      if (m * bx.sc < 20) for (let it = 0; it < 4 && m * bx.sc + Bm * bx.sc / 2 < MINPX - 0.5; it++) { Bm = Math.max(Bm, 2 * (MINPX / bx.sc - m)); if (capped) Bm = Math.min(Bm, 1.5 * (stripH + m)); fv = (v) => v + Bm * v / (Math.abs(v) + m); bx = bounds(fv); }
+      if (m * bx.sc < 20 && !els.some(e => e.k === 'linear')) for (let it = 0; it < 4 && m * bx.sc + Bm * bx.sc / 2 < MINPX - 0.5; it++) { Bm = Math.max(Bm, 2 * (MINPX / bx.sc - m)); if (capped) Bm = Math.min(Bm, 1.5 * (stripH + m)); fv = (v) => v + Bm * v / (Math.abs(v) + m); bx = bounds(fv); }
     }
     const { en, e0, e1, n0, n1, sc } = bx, W = (e1 - e0) * sc, H = (n1 - n0) * sc, off = (640 - W) / 2, T = H + 20;
     const X = (e) => off + (e - e0) * sc, Y = (n) => 10 + (n1 - n) * sc, scr = (u, v) => { const q = en(u, v); return [X(q[0]), Y(q[1])]; };
@@ -2486,22 +2518,25 @@
     const segs = [{ nm: 'Final Approach area', c: '#26c6da', a: M, b: Fm, wa: Q.wm, wb: Q.wf, la: 'MAPt', lb: 'FAF' }, { nm: 'Initial Missed Approach area', c: '#7e57c2', a: Q.uS, b: M, wa: Q.wS, wb: Q.wm, la: 'SOC', lb: 'MAPt' },
       ...(hasE ? [{ nm: 'Intermediate Missed Approach area', c: '#ec407a', a: Q.uE, b: Q.uS, wa: Q.wE, wb: Q.wS, la: 'END', lb: 'SOC' }] : [])];
     const sg = segs.find(z => u0 >= z.a && u0 <= z.b) || (u0 > Fm ? segs[0] : segs[segs.length - 1]), inA = u0 >= sg.a && u0 <= sg.b;
-    const w2 = !inA ? 0 : s < 0 ? Q.wm + (Q.wf - Q.wm) * (-s / (Fm - M)) : Q.wm + s * t15;
+    const gS = S.geo[n - 1], w2 = !inA ? 0 : s < 0 ? S.w2base + S.w2k * Math.hypot(gS.P, Math.abs(u0 - gS.B)) : Q.wm + s * t15;
     const span = sg.b - sg.a, Ls = 440, kx = Ls / span, ky = 110 / Math.max(sg.wa, sg.wb);
     // points outside the segment (DB, MAPt, proposed location) are drawn at short, compressed distances beyond its ends, in their real order
-    const outs = [[0, 'DB'], [M, 'MAPt'], [u0, 'LOC']].filter(p => p[0] < sg.a - 1 || p[0] > sg.b + 1), Xo = {};
+    const fin = inA && s < 0, sideS = sraFrame(n).sre.v >= 0 ? 1 : -1, Dsre = Math.hypot(gS.P, Math.abs(u0 - gS.B));
+    const outs = [[0, 'DB'], [M, 'MAPt'], [u0, 'LOC'], ...(fin ? [[gS.B, 'SRE']] : [])].filter(p => p[0] < sg.a - 1 || p[0] > sg.b + 1), Xo = {};
     [1, -1].forEach(dir => { const lst = outs.filter(p => dir > 0 ? p[0] > sg.b : p[0] < sg.a).sort((p, q) => dir * (p[0] - q[0])); let last = dir > 0 ? Ls : 0, lu = dir > 0 ? sg.b : sg.a;
       lst.forEach(p => { last += dir * (Math.abs(p[0] - lu) < 1 ? 0 : 80); lu = p[0]; Xo[p[1]] = last; }); });
-    const ins = [sg.a, ...[0, M, u0].filter(u => u > sg.a + 1 && u < sg.b - 1), sg.b].sort((p, q) => p - q).filter((u, i, arr) => i === 0 || u - arr[i - 1] > 1);
+    const ins = [sg.a, ...[0, M, u0, ...(fin ? [gS.B] : [])].filter(u => u > sg.a + 1 && u < sg.b - 1), sg.b].sort((p, q) => p - q).filter((u, i, arr) => i === 0 || u - arr[i - 1] > 1);
     const gw = ins.slice(1).map((u, i) => Math.max((u - ins[i]) / span, u === u0 || ins[i] === u0 ? 0.38 : 0.22)), gs = gw.reduce((t, v) => t + v, 0), ixs = [0]; gw.forEach(v => ixs.push(ixs[ixs.length - 1] + v / gs * Ls));
     const Xin = (u) => { for (let i = 1; i < ins.length; i++) if (u <= ins[i]) return ixs[i - 1] + (ixs[i] - ixs[i - 1]) * (u - ins[i - 1]) / (ins[i] - ins[i - 1]); return Ls; };
     const X = (u, key) => key && Xo[key] !== undefined ? Xo[key] : Xin(Math.min(Math.max(u, sg.a), sg.b));
-    const xA = 0, xB = Ls, xD = X(0, 'DB'), xM = X(M, 'MAPt'), xL = X(u0, 'LOC'), hA = sg.wa * ky, hB = sg.wb * ky, dbIn = Xo.DB === undefined;
+    const xA = 0, xB = Ls, xD = X(0, 'DB'), xM = X(M, 'MAPt'), xL = X(u0, 'LOC'), hA = sg.wa * ky, hB = sg.wb * ky, dbIn = Xo.DB === undefined, xS = fin ? X(gS.B, 'SRE') : 0;
     const edge = (x) => hA + (hB - hA) * Math.min(Math.max(x / Ls, 0), 1);
-    const yL = side * (inA ? Math.min(Math.max(o.P / w2, 0.3), 1.25) : 0.5) * edge(xL);
+    // a location alongside the runway is kept clear of the (thickly drawn) runway bar
+    const yL0 = (inA ? Math.min(Math.max(o.P / w2, 0.3), 1.25) : 0.5) * edge(xL), besideRwy = sg.a < 0 && u0 <= 0 && u0 >= -Lr, yL = side * (besideRwy ? Math.max(yL0, 30) : yL0);
     const az = S.axis[n - 1] * DEG, ca = Math.sin(az), sa = -Math.cos(az), Rt = (x, y) => [x * ca - y * sa, x * sa + y * ca];
-    const xr0 = Math.min(xA, xD, xM, xL), xr1 = Math.max(xB, xD, xM, xL);
-    const geo = [[xA, hA], [xA, -hA], [xB, hB], [xB, -hB], [xr0, 0], [xr1, 0], [xL, yL]].map(p => Rt(...p));
+    const yS = sideS * 0.62 * Math.max(hA, hB);   // SRE drawn a little off the centre line, on its real side
+    const xr0 = Math.min(xA, xD, xM, xL, fin ? xS : xA), xr1 = Math.max(xB, xD, xM, xL, fin ? xS : xB);
+    const geo = [[xA, hA], [xA, -hA], [xB, hB], [xB, -hB], [xr0, 0], [xr1, 0], [xL, yL], ...(fin ? [[xS, yS]] : [])].map(p => Rt(...p));
     const x0 = Math.min(...geo.map(p => p[0])), x1 = Math.max(...geo.map(p => p[0])), y0 = Math.min(...geo.map(p => p[1])), y1 = Math.max(...geo.map(p => p[1]));
     const k = Math.min((W - 2 * m) / (x1 - x0), (Hmax - 2 * m) / (y1 - y0), 1.4), H = (y1 - y0) * k + 2 * m + 10, ox = (W - (x1 - x0) * k) / 2 - x0 * k, oy = m + 10 - y0 * k;
     const P = (x, y) => { const r = Rt(x, y); return [ox + r[0] * k, oy + r[1] * k]; };
@@ -2531,21 +2566,30 @@
     let g = `<polygon points="${[[xA, hA], [xB, hB], [xB, -hB], [xA, -hA]].map(p => P(...p).map(v => v.toFixed(1)).join(',')).join(' ')}" fill="${sg.c}" fill-opacity="0.2" stroke="${sg.c}" stroke-width="1.2"/>`;
     g += L([xr0 - 15, 0], [xr1 + 15, 0], '#999', 0.8, '6 4');                                                     // centre line
     // runway: from its DB towards the other DB, cut at the end of the segment; for the Final Approach segment (all on the approach side) only a short stub at the DB
-    const rEnd = sg.a >= 0 ? xD + (xD < xA ? -35 : 35) : X(Math.max(-Lr, sg.a), null);
+    const rEnd = sg.a >= 0 ? (fin && Math.abs(xS - xD) > 1 ? xS + (xS < xD ? -25 : 25) : xD + (xD < xA ? -35 : 35)) : X(Math.max(-Lr, sg.a), null);
     g += L([xD, 0], [rEnd, 0], '#111', 9) + L([xD, 0], [rEnd, 0], '#fff', 1.2, '7 5');
     const yD2 = -side * 0.22 * Math.max(hA, hB), yX = -side * 0.42 * Math.max(hA, hB), labs = [];
-    g += L([xD, 0], [xL, yL], BL, 1.2); labs.push(labLn([xD, 0], [xL, yL], 'd', 0.5, 0, side, BL));
+    g += L([xD, 0], [xL, yL], BL, 1.2); labs.push(labLn([xD, 0], [xL, yL], 'd', fin ? 0.8 : 0.5, 0, side, BL));
     g += L([xL, 0], [xL, yL], RD, 1.2, '5 3'); labs.push(labLn([xL, 0], [xL, yL], 'D1', 0.5, xL >= xD ? 1 : -1, 0, RD));
     if (Math.abs(xL - xD) > 2) { g += dim(xD, xL, yD2, GR); labs.push(labLn([xD, yD2], [xL, yD2], 'D2', 0.5, 0, -side, GR)); }
     if (inA && Math.abs(xL - xM) > 2) { g += dim(xM, xL, yX, XC); labs.push(labLn([xM, yX], [xL, yX], 'x', 0.5, 0, -side, XC)); }
     if (inA) { g += L([xL, 0], [xL, -side * edge(xL)], W2C, 1.5); labs.push(labLn([xL, 0], [xL, -side * edge(xL)], 'W/2', 0.7, xL >= xM ? -1 : 1, 0, W2C)); }
+    if (fin) { g += L([xS, yS], [xS, 0], '#6a1b9a', 1.2, '5 3') + L([xS, yS], [xL, 0], '#8e24aa', 1.2, '2 3') + dot([xS, yS], '#8e24aa');
+      labs.push(labLn([xS, 0], [xS, yS], 'P', 0.5, xS < xD ? -1 : 1, 0, '#6a1b9a'), labLn([xS, yS], [xL, 0], 'D', 0.22, 0, sideS, '#8e24aa'), lab([xS, yS], 0, sideS, 'SRE', '#8e24aa', 6)); }
     const pts = [[xA, sg.la], [xB, sg.lb], [xM, 'MAPt'], [xD, `${rw} DB`]].filter((p, i, arr) => arr.findIndex(q => q[1] === p[1]) === i);
     pts.forEach(([x, t]) => { const db = /DB$/.test(t), end = Math.abs(x - xA) < 1 ? -1 : Math.abs(x - xB) < 1 ? 1 : 0; g += dot([x, 0], db ? '#000' : OR); labs.push(lab([x, 0], end, end ? 0 : side, t, db ? '#111' : OR, 6)); });
-    g += dot([xL, yL], col, 5); labs.push(lab([xL, yL], xL >= xD ? 1 : -1, side, 'PROPOSED LOCATION', col, 8));
+    if (GRP && GRP.list.length > 1) { const line = GRP.list[0].kind === 'line', dd = GRP.list.map(Ri => { const oi = sraPos(n, Ri.lat, Ri.lon); return [oi.along - u0, oi.v - o.v]; });
+      // same scale both ways (shape kept), small enough that the outline stays on the proposed location's side of the centre line
+      const kA = Math.abs(X(u0 + 5, null) - X(u0 - 5, null)) / 10 || kx, mv = Math.max(...dd.map(p => Math.abs(p[1])), 1e-6), k1 = Math.min(kA, 0.5 * Math.abs(yL) / mv);
+      const Pg = dd.map(p => [xL + p[0] * k1, yL + p[1] * k1]);
+      const ptsS = Pg.map(p => P(...p).map(v => v.toFixed(1)).join(',')).join(' ');
+      g += line ? `<polyline points="${ptsS}" fill="none" stroke="#f9a825" stroke-width="2"/>` : `<polygon points="${ptsS}" fill="#ef6c00" fill-opacity="0.25" stroke="#ef6c00" stroke-width="1.2"/>`;
+      GRP.list.forEach((Ri, i) => { if (Ri !== GRP.ref) g += dot(Pg[i], Ri.cleared ? GR : RD, 3); }); }
+    g += dot([xL, yL], col, 5);
     labs.forEach(q => { g += put(q.cands, q.t, q.c, q.ang); });
     g += `<path d="M${W - 26},44 L${W - 20},26 L${W - 14},44 Z" fill="#111"/>` + svgTx(W - 20, 20, 'N', { fs: 11 }) + svgTx(12, 18, 'Not to scale', { a: 'start', fs: 11, c: '#666' });
-    const leg = [[sg.c, sg.nm + (inA ? '' : ' (nearest)')], [BL, `d = ${f(o.vi.dist)} m: ${rw} DB to proposed location`], [RD, `D1 = ${f(o.P)} m: from the centre line`],
-      [GR, `D2 = ${f(Math.abs(u0))} m: along the centre line from ${rw} DB`], ...(inA ? [[XC, `x = ${f(Math.abs(s))} m: from the MAPt`], [W2C, `W/2 = ${f(w2)} m: at the proposed location`]] : [])];
+    const leg = [[sg.c, sg.nm + (inA ? '' : ' (nearest)')], [col, GRP && GRP.list.length > 1 ? `Proposed location (${GRP.list[0].kind === 'line' ? 'Mast' : 'Corner'} ${GRP.ref.pointIndex + 1})` : 'Proposed location'], ...(GRP && GRP.list.length > 1 ? [[GRP.list[0].kind === 'line' ? '#f9a825' : '#ef6c00', (GRP.list[0].kind === 'line' ? 'Transmission line – all ' : 'Building – all ') + GRP.list.length + (GRP.list[0].kind === 'line' ? ' masts' : ' corners')]] : []), [BL, `d = ${f(o.vi.dist)} m: ${rw} DB to proposed location`], [RD, `D1 = ${f(o.P)} m: from the centre line`],
+      [GR, `D2 = ${f(Math.abs(u0))} m: along the centre line from ${rw} DB`], ...(inA ? [[XC, `x = ${f(Math.abs(s))} m: from the MAPt`], [W2C, `W/2 = ${f(w2)} m: at the proposed location`]] : []), ...(fin ? [['#6a1b9a', `P = ${f(gS.P)} m: SRE from the centre line`], ['#8e24aa', `D = ${f(Dsre)} m: SRE to ERCL abeam proposed location`]] : [])];
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${(H + 8 + legColsRows(leg, W) * 16 + 8).toFixed(0)}" style="width:100%;height:auto;background:#fff;border:1px solid #9aa5b1;margin:4px 0">` + g + legDrawCols(leg, W, H + 4) + '</svg>';
   }
   function sraObsFig(R, n, sf, key, o) {
@@ -2788,12 +2832,20 @@
       <div style="display:flex;justify-content:space-between;margin-top:34px"><div>Prepared by: ____________________</div><div>Checked by: ____________________</div><div>Date: ____________</div></div>`;
     return plainFigText(numberFigures(sheet)).replaceAll('DB1', G.runwayNames[0]).replaceAll('DB2', G.runwayNames[1]);
   }
-  function buildSheet(R) {
-    const e = escapeHtmlSimple;
-    const near = R.best.name;
+  // one surface: heading, figures and the work-sheet lines for one proposed location
+  function surfSection(R, sf, first, title) {
+    return `<div class="surfPage">${first ? '<h2>Surface calculations</h2>' : ''}<h3>${title || sf.name}</h3>` + (sf.name === 'Inner Horizontal Surface' ? `<!--fig:Position of Proposed Location wrt IHS-->${ihsFig(R, sf)}${sf.lines.join('')}` : /^(Conical Surface|Outer Horizontal Surface|Approach Surface|Take-off Climb Surface|Transitional Surface|Inner Approach Surface|Inner Transitional Surface|Balked Landing Surface)/.test(sf.name) ? wsSurfaceHtml(R, sf) : `${planSvg(R, sf)}${sf.lines.filter(l => !/Step 1 –/.test(l)).map(l => l.replace(/Step (\d+) –/, (m, k) => 'Step ' + (k - 1) + ' –') + stepFig(R, sf, l)).join('')}`) + '</div>';
+  }
+  // distances of one proposed location from the reference points (table)
+  function distTableHtml(R) {
+    const near = R.best.name, displayName = name => name === 'DB1' ? G.runwayNames[0] : name === 'DB2' ? G.runwayNames[1] : name;
+    return `<table><tr><th>Reference point</th><th>Distance to obstacle</th><th>Bearing</th></tr>${R.locs.map(r => `<tr${r.name === near ? ' style="background:#fff4d6"' : ''}><td>${displayName(r.name)}${r.name === near ? ' (nearest)' : ''}</td><td><b>${f(r.dist)} m</b></td><td>${dg(r.brg, 2)}</td></tr>`).join('')}</table>`;
+  }
+  function buildSheet(R) { return finishSheet(rawSheet(R)); }
+  function rawSheet(R) {
     const applicable = R.surfaces.filter(sf => sf.applies && !sf.sra);
     const surfaceSteps = applicable.length
-      ? applicable.map((sf, i) => `<div class="surfPage">${i === 0 ? '<h2>Surface calculations</h2>' : ''}<h3>${sf.name}</h3>` + (sf.name === 'Inner Horizontal Surface' ? `<!--fig:Position of Proposed Location wrt IHS-->${ihsFig(R, sf)}${sf.lines.join('')}` : /^(Conical Surface|Outer Horizontal Surface|Approach Surface|Take-off Climb Surface|Transitional Surface|Inner Approach Surface|Inner Transitional Surface|Balked Landing Surface)/.test(sf.name) ? wsSurfaceHtml(R, sf) : `${planSvg(R, sf)}${sf.lines.filter(l => !/Step 1 –/.test(l)).map(l => l.replace(/Step (\d+) –/, (m, k) => 'Step ' + (k - 1) + ' –') + stepFig(R, sf, l)).join('')}`) + '</div>').join('')
+      ? applicable.map((sf, i) => surfSection(R, sf, i === 0)).join('')
       : '<p>The obstacle point is outside the plan area of all listed OLS surfaces, so no OLS height limit applies at this location.</p>';
     const affectedTable = R.hits.length
       ? `<table><tr><th>Affected surface</th><th>Height limit (m AMSL)</th><th>Proposed top (m AMSL)</th><th>Clearance / exceedance (m)</th><th>Result</th></tr>` +
@@ -2805,18 +2857,96 @@
           ? `The proposed top of ${f(R.top)} m AMSL is below every applicable surface. The lowest permitted height is <b>${f(R.gov.amsl)} m AMSL</b>, governed by ${R.gov.name}; remaining clearance is <b>${f(R.gov.margin)} m</b>.`
           : 'No listed OLS height limit applies at this location.'}</div>`
       : `<div class="verdict"><span class="no">PROPOSAL NOT CLEARED</span> — The proposed top of ${f(R.top)} m AMSL is above the permissible top limits of ${infringed.map(h => h.name.replace(/ – (RW\S+)$/, ' for $1')).join(', ')}. The governing maximum permitted height is <b>${f(R.gov.amsl)} m AMSL</b> as controlled by ${R.gov.name} at the proposed location. Reduce the proposed top by at least <b>${f(R.top - R.gov.amsl)} m</b>. With its proposed top elevation, the proposal is "Not Recommended" for issuance of NOC.</div>`;
-    const displayName = name => name === 'DB1' ? G.runwayNames[0] : name === 'DB2' ? G.runwayNames[1] : name;
-    const distanceRows = R.locs.map(r => `<tr${r.name === near ? ' style="background:#fff4d6"' : ''}><td>${displayName(r.name)}${r.name === near ? ' (nearest)' : ''}</td><td><b>${f(r.dist)} m</b></td><td>${dg(r.brg, 2)}</td></tr>`).join('');
-    const pointLabel = R.kind === 'building' ? `Building corner ${R.pointIndex + 1}` : R.kind === 'line' ? `Transmission mast ${R.pointIndex + 1}` : 'Proposal';
     const sheet = `${workSheetPage(R)}<div style="page-break-before:always;break-before:page"></div><h2>Distances from reference points</h2>
-      <table><tr><th>Reference point</th><th>Distance to obstacle</th><th>Bearing</th></tr>${distanceRows}</table>
+      ${distTableHtml(R)}
       <h2>Calculations for distances</h2>${distSteps(R)}
 
       ${applicable.length ? '' : '<h2>Surface calculations</h2>'}${surfaceSteps}
       <h2 style="page-break-before:always;break-before:page">Surveillance Radar Approach (SRA) calculations</h2>
-      <h3>SRA data</h3>${sraSummaryTable()}${sraObsHtml(R, 1)}${sraObsHtml(R, 2)}
+      <h3>SRA data</h3>${sraSummaryTable()}${[1, 2].filter(n => (R.surfaces.find(x => x.sra === n) || {}).applies).map(n => sraObsHtml(R, n)).join('') || `<p>The proposed location does not fall in the SRA of ${G.runwayNames[0]} or ${G.runwayNames[1]}, hence no SRA limit applies.</p>`}
       <h2 style="page-break-before:always;break-before:page">Summary of affected surfaces</h2>${affectedTable}
       <h2>Recommendation</h2>${verdict}      <div style="display:flex;justify-content:space-between;margin-top:34px"><div>Prepared by: ____________________</div><div>Checked by: ____________________</div><div>Date: ____________</div></div>`;
+    return sheet;
+  }
+  // ---------- Building / transmission line: one combined sheet; the full working only for the critical corner (mast) of each surface ----------
+  function groupInfo(Rs) {
+    const line = Rs[0].kind === 'line', unit = line ? 'Mast' : 'Corner', units = line ? 'masts' : 'corners', what = line ? 'transmission line' : 'building';
+    const mg = (R) => R.gov ? R.gov.amsl - R.top : Infinity, lab = (R) => unit + ' ' + (R.pointIndex + 1);
+    const crit = Rs.reduce((m, R) => mg(R) < mg(m) ? R : m, Rs[0]);
+    return { line, unit, units, what, mg, lab, crit, cleared: Rs.every(R => R.cleared), n: Rs.length };
+  }
+  // plan of the building / line, north up, to scale: numbered corners (masts) coloured by result, scale bar, direction of the nearest runway end
+  function groupFig(Rs) {
+    try {
+      const I = groupInfo(Rs), W = 640, H = 330, m = 60, pts = Rs.map(R => [R.O.x, R.O.y]);
+      const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      const k = Math.min((W - 2 * m) / Math.max(x1 - x0, 1), (H - 2 * m) / Math.max(y1 - y0, 1)), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      const P = (p) => [W / 2 + (p[0] - cx) * k, H / 2 - (p[1] - cy) * k], sp = pts.map(P), C = [sp.reduce((t, p) => t + p[0], 0) / sp.length, sp.reduce((t, p) => t + p[1], 0) / sp.length];
+      let g = I.line ? `<polyline points="${sp.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="#f9a825" stroke-width="2.5"/>`
+        : `<polygon points="${sp.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="#ffb74d" fill-opacity="0.35" stroke="#ef6c00" stroke-width="1.5"/>`;
+      Rs.forEach((R, i) => { const p = sp[i], col = R.cleared ? C_.GR : C_.RD; let dx = p[0] - C[0], dy = p[1] - C[1]; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+        if (I.line) { const a = sp[Math.max(i - 1, 0)], b = sp[Math.min(i + 1, sp.length - 1)], tx = b[0] - a[0], ty = b[1] - a[1], tl = Math.hypot(tx, ty) || 1; dx = -ty / tl; dy = tx / tl; }
+        g += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${R === I.crit ? 7 : 5}" fill="${col}" stroke="#fff" stroke-width="1.5"/>` + svgTx(p[0] + dx * 16, p[1] + dy * 16 + 4, String(R.pointIndex + 1) + (R === I.crit ? ' (critical)' : ''), { fs: 11, c: col, w: 700 }); });
+      // nearest runway end of the critical corner (mast): arrow from the centre of the plan
+      const n = nearEnd(I.crit), db = n === 1 ? G.a : G.b, rc = [cx, cy], v = [db.x - rc[0], db.y - rc[1]], dl = Math.hypot(v[0], v[1]) || 1, u = [v[0] / dl, -v[1] / dl];
+      const a0 = [W / 2 + u[0] * 40, H / 2 + u[1] * 40], a1 = [W / 2 + u[0] * 120, H / 2 + u[1] * 120], ah = Math.atan2(u[1], u[0]);
+      g += `<line x1="${a0[0].toFixed(1)}" y1="${a0[1].toFixed(1)}" x2="${a1[0].toFixed(1)}" y2="${a1[1].toFixed(1)}" stroke="#555" stroke-width="1.2" stroke-dasharray="5 3"/>` +
+        `<path d="M${a1[0].toFixed(1)},${a1[1].toFixed(1)} L${(a1[0] - 9 * Math.cos(ah - 0.4)).toFixed(1)},${(a1[1] - 9 * Math.sin(ah - 0.4)).toFixed(1)} L${(a1[0] - 9 * Math.cos(ah + 0.4)).toFixed(1)},${(a1[1] - 9 * Math.sin(ah + 0.4)).toFixed(1)} Z" fill="#555"/>` +
+        svgTx(a1[0] + u[0] * 14, a1[1] + u[1] * 14 + 4, `To DB${n} DB, ${f(dl)} m`, { fs: 11, c: '#555', a: u[0] < -0.3 ? 'end' : u[0] > 0.3 ? 'start' : 'middle' });
+      // scale bar
+      const nice = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000].find(q => q * k >= 60) || 5000;
+      g += `<line x1="20" y1="${H - 18}" x2="${(20 + nice * k).toFixed(1)}" y2="${H - 18}" stroke="#111" stroke-width="2"/>` + svgTx(20 + nice * k / 2, H - 24, `${nice} m`, { fs: 11 });
+      g += `<path d="M${W - 26},44 L${W - 20},26 L${W - 14},44 Z" fill="#111"/>` + svgTx(W - 20, 20, 'N', { fs: 11 });
+      const leg = [[I.line ? '#f9a825' : '#ffb74d', I.line ? 'Transmission line' : 'Building outline'], [C_.GR, `${I.unit} cleared`], [C_.RD, `${I.unit} infringes`]];
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H + 8 + legRows(leg, W) * 16 + 8}" style="width:100%;height:auto;background:#fff;border:1px solid #9aa5b1;margin:4px 0">` + g + legDraw(leg, W, H + 4) + '</svg>';
+    } catch (err) { return ''; }
+  }
+  function buildGroupSheet(Rs, appendix) { try { return buildGroupSheet0(Rs, appendix); } finally { GRP = null; } }
+  function buildGroupSheet0(Rs, appendix) {
+    const I = groupInfo(Rs), { crit, lab, mg, unit, units, what, n } = I, cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+    const sg = (v) => (v >= 0 ? '+' : '−') + f(Math.abs(v));
+    // critical corner (mast) of each surface = the one with the smallest margin in that surface
+    const pick = (list) => list.reduce((a, b) => (b.sf.amsl - b.R.top) < (a.sf.amsl - a.R.top) ? b : a, list[0]);
+    const cmp = (list, c) => { const same = list.every(x => Math.abs(x.sf.amsl - list[0].sf.amsl) < 0.005 && Math.abs(x.R.top - list[0].R.top) < 0.005);
+      if (list.length === 1) return '<div class="calc"><i>Only ' + lab(c.R) + ' of the ' + what + ' falls in this surface</i> (limit ' + f(c.sf.amsl) + ' m AMSL, margin ' + sg(c.sf.amsl - c.R.top) + ' m)</div>';
+      return '<div class="calc"><i>' + unit + 's in this surface</i>: ' + (same ? (list.length === n ? 'all ' + n + ' ' + units : list.map(x => lab(x.R)).join(', ')) + ' → ' + f(list[0].sf.amsl) + ' m AMSL (same limit and top), worked for <b>' + lab(c.R) + '</b>' : list.map(x => lab(x.R) + ' → ' + f(x.sf.amsl) + ' m AMSL').join(', ') + '; critical: <b>' + lab(c.R) + '</b>') + ' (margin ' + sg(c.sf.amsl - c.R.top) + ' m)</div>'; };
+    const names = []; Rs.forEach(R => R.surfaces.forEach(sf => { if (sf.applies && !sf.sra && !names.includes(sf.name)) names.push(sf.name); }));
+    const surfHtml = names.map((nm, i) => { const list = Rs.map(R => ({ R, sf: R.surfaces.find(q => q.name === nm) })).filter(x => x.sf && x.sf.applies), c = pick(list);
+      GRP = { list: Rs, ref: c.R }; return surfSection(c.R, c.sf, i === 0, nm + ' – critical ' + lab(c.R)).replace('</h3>', '</h3>' + cmp(list, c)); }).join('');
+    const sraHtml = [1, 2].map(k => { const list = Rs.map(R => ({ R, sf: R.surfaces.find(q => q.sra === k) })).filter(x => x.sf && x.sf.applies); if (!list.length) return ''; const c = pick(list);
+      GRP = { list: Rs, ref: c.R }; return sraObsHtml(c.R, k).replace('</h3>', ' – critical ' + lab(c.R) + '</h3>' + cmp(list, c)); }).join('');
+    // table of all corners (masts)
+    const unitTable = '<table><tr><th>' + unit + '</th><th>Latitude / Longitude</th><th>Nearest reference: bearing / distance</th><th>Top (m AMSL)</th><th>Surfaces it falls in</th><th>Governing surface</th><th>Max permitted (m AMSL)</th><th>Margin (m)</th><th>Result</th></tr>' +
+      Rs.map(R => '<tr' + (R === crit ? ' style="background:#fff4d6"' : '') + '><td>' + (R.pointIndex + 1) + (R === crit ? ' (critical)' : '') + '</td><td>' + dms(R.lat, true) + ' / ' + dms(R.lon, false) + '</td><td>' + R.best.name + ': ' + dg(R.best.brg) + ' / ' + f(R.best.dist) + ' m</td><td>' + f(R.top) + '</td><td>' + (R.hits.length ? R.hits.map(h => h.name).join(', ') : 'None') + '</td><td>' + (R.gov ? R.gov.name : '—') + '</td><td>' + (R.gov ? f(R.gov.amsl) : '—') + '</td><td>' + (R.gov ? sg(mg(R)) : '—') + '</td><td>' + (R.cleared ? '<span class="ok">CLEARED</span>' : '<span class="no">INFRINGES</span>') + '</td></tr>').join('') + '</table>';
+    // affected surfaces: the critical corner (mast) of each surface
+    const hn = []; Rs.forEach(R => R.hits.forEach(h => { if (!hn.includes(h.name)) hn.push(h.name); }));
+    const crHits = hn.map(nm => { const list = Rs.map(R => ({ R, h: R.hits.find(h => h.name === nm) })).filter(x => x.h), c = list.reduce((a, b) => (b.h.amsl - b.R.top) < (a.h.amsl - a.R.top) ? b : a, list[0]);
+      return { nm, c, inf: list.filter(x => x.h.infringes).map(x => lab(x.R)) }; });
+    const affTable = crHits.length ? '<table><tr><th>Affected surface</th><th>Critical ' + unit.toLowerCase() + '</th><th>Height limit (m AMSL)</th><th>Proposed top (m AMSL)</th><th>Clearance / exceedance (m)</th><th>' + cap(units) + ' infringing</th><th>Result</th></tr>' +
+      crHits.map(x => '<tr><td>' + x.nm + '</td><td>' + lab(x.c.R) + '</td><td>' + f(x.c.h.amsl) + '</td><td>' + f(x.c.R.top) + '</td><td>' + sg(x.c.h.amsl - x.c.R.top) + '</td><td>' + (x.inf.join(', ') || 'None') + '</td><td>' + (x.inf.length ? '<span class="no">INFRINGES</span>' : '<span class="ok">CLEARED</span>') + '</td></tr>').join('') + '</table>'
+      : '<p>No OLS surfaces apply at any ' + unit.toLowerCase() + '.</p>';
+    const inf = Rs.filter(R => !R.cleared), maxTop = Math.max(...Rs.map(R => R.top));
+    const verdict = I.cleared
+      ? '<div class="verdict"><span class="ok">PROPOSAL CLEARED</span> — All ' + n + ' ' + units + ' of the ' + what + ' (top up to ' + f(maxTop) + ' m AMSL) are below every applicable surface.' + (crit.gov ? ' The smallest margin is <b>' + f(mg(crit)) + ' m</b> at ' + lab(crit) + ', where the permitted height is <b>' + f(crit.gov.amsl) + ' m AMSL</b>, governed by ' + crit.gov.name + '.' : ' No listed OLS height limit applies.') + '</div>'
+      : '<div class="verdict"><span class="no">PROPOSAL NOT CLEARED</span> — The ' + what + ' is above the permissible top limits at ' + inf.map(R => lab(R) + ' (' + R.hits.filter(h => h.infringes).map(h => h.name.replace(/ – (RW\S+)$/, ' for $1')).join(', ') + ')').join(', ') + '. The governing maximum permitted height is <b>' + f(crit.gov.amsl) + ' m AMSL</b> at ' + lab(crit) + ', as controlled by ' + crit.gov.name + '. Reduce the proposed top by at least <b>' + f(-mg(crit)) + ' m</b> (at ' + lab(crit) + '). With its proposed top elevation, the proposal is "Not Recommended" for issuance of NOC.</div>';
+    // work sheet: the building / line as one proposal, positions and limits of its critical corner (mast)
+    const Rg = Object.assign({}, crit, { name: crit.name + ' (' + what + ', ' + n + ' ' + units + '; critical ' + lab(crit) + ')', hits: crHits.map(x => x.c.h), cleared: I.cleared });
+    const PB = '<div style="page-break-before:always;break-before:page"></div>';
+    let sheet = workSheetPage(Rg) + PB + '<h2>' + cap(units) + ' of the ' + what + '</h2>' + unitTable + '<!--fig:Plan of the ' + what + ' (' + units + ' numbered, north up)-->' + groupFig(Rs) +
+      '<h2>Distances from reference points – critical ' + lab(crit) + '</h2>' + distTableHtml(crit) + '<h2>Calculations for distances – ' + lab(crit) + '</h2>' + (GRP = { list: Rs, ref: crit }, distSteps(crit)) +
+      (surfHtml || '<h2>Surface calculations</h2><p>No ' + unit.toLowerCase() + ' of the ' + what + ' falls in the plan area of the listed OLS surfaces.</p>') +
+      '<h2 style="page-break-before:always;break-before:page">Surveillance Radar Approach (SRA) calculations</h2><h3>SRA data</h3>' + sraSummaryTable() +
+      (sraHtml || '<p>No ' + unit.toLowerCase() + ' of the ' + what + ' falls in the SRA of ' + G.runwayNames[0] + ' or ' + G.runwayNames[1] + ', hence no SRA limit applies.</p>') +
+      '<h2 style="page-break-before:always;break-before:page">Summary of affected surfaces</h2>' + affTable + '<h2>Recommendation</h2>' + verdict +
+      '<div style="display:flex;justify-content:space-between;margin-top:34px"><div>Prepared by: ____________________</div><div>Checked by: ____________________</div><div>Date: ____________</div></div>';
+    GRP = null;   // the appendix sheets show one corner (mast) each, as before
+    if (appendix) sheet += Rs.map(R => PB + '<h2>Appendix – ' + lab(R) + ' (full calculation)</h2>' + rawSheet(R)).join('');
+    return finishSheet(sheet);
+  }
+  // results grouped per building / line (one group = all its corners or masts)
+  const resultGroups = () => { const ids = []; lastResults.forEach(R => { if (!ids.includes(R.groupIndex)) ids.push(R.groupIndex); }); return ids.map(gi => lastResults.filter(R => R.groupIndex === gi)); };
+  // figure numbers, figure text, runway names and wording for a finished sheet
+  function finishSheet(sheet) {
     const named = plainFigText(numberFigures(sheet)).replaceAll('DB1', G.runwayNames[0]).replaceAll('DB2', G.runwayNames[1]);
     // wording: "obstacle" → "proposed location" in all visible text (not inside tags)
     return named.replace(/>([^<]*)</g, (m, t) => '>' + t.replace(/\bobstacles\b/g, 'proposed locations').replace(/\bObstacles\b/g, 'Proposed locations')
@@ -2927,7 +3057,7 @@
       globeBusy = false;
     }
   });
-  $('printBtn').addEventListener('click', () => { if (!lastResults.length) return; $('sheetBody').innerHTML = lastResults.map((R, i) => `<div style="page-break-after:${i === lastResults.length - 1 ? 'auto' : 'always'}">${buildSheet(R)}</div>`).join(''); $('sheetModal').style.display = 'block'; $('sheetModal').scrollTop = 0; });
+  $('printBtn').addEventListener('click', () => { if (!lastResults.length) return; const gs = resultGroups(); $('sheetBody').innerHTML = gs.map((Rs, i) => `<div style="page-break-after:${i === gs.length - 1 ? 'auto' : 'always'}">${Rs.length > 1 && Rs[0].kind !== 'single' ? buildGroupSheet(Rs, $('chkAppx').checked) : buildSheet(Rs[0])}</div>`).join(''); $('sheetModal').style.display = 'block'; $('sheetModal').scrollTop = 0; });
   $('sheetClose').addEventListener('click', () => { $('sheetModal').style.display = 'none'; });
   $('sheetPrint').addEventListener('click', () => window.print());
   $('sheetDocx').addEventListener('click', downloadDocx);
