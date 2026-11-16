@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NOCAS Calculation Sheet Generator (UTM grid)</title>
+<title>NOCAS Calculation Sheet Generator</title>
 <style>
   :root { --bg:#f4f6f9; --card:#fff; --ink:#1b2430; --mut:#5d6b7c; --line:#d5dbe3; --acc:#0b63c5; --bad:#c62828; }
   @media (prefers-color-scheme: dark) {
@@ -141,7 +141,7 @@
     <h2>Proposal</h2>
     <p class="hint">Enter the details of proposal: a single location, a building outline using corners in perimeter order, or a transmission line using mast locations.</p>
     <div id="obstacleGroups"></div>
-    <div id="nocasHold" hidden><div id="nocasBox"><label for="nocas">NOCAS ID</label><input id="nocas" value="2026/10WG/B/84" autocomplete="off"></div></div>
+    <div id="nocasHold" hidden><div id="nocasBox"><label for="nocas">NOCAS ID</label><input id="nocas" value="" autocomplete="off"></div></div>
     <div class="actions"><button type="button" id="calcBtn">Calculate</button><button type="button" id="printBtn" disabled>Print calculation steps</button></div>
     <label id="appxWrap" class="appx" hidden><input type="checkbox" id="chkAppx"> Add the full calculation of every corner / mast as an appendix to the printed sheet</label>
     <div id="obsMsg"></div>
@@ -190,7 +190,7 @@
 <div id="pwModal" hidden>
   <form class="modalCard pwCard" id="pwForm" role="dialog" aria-labelledby="pwTitle" autocomplete="off">
     <h2 id="pwTitle">Aerodrome settings</h2>
-    <p class="hint">Enter the password to view or change the aerodrome settings.</p>
+    <p class="hint" id="pwHint">Enter the password to view or change the aerodrome settings.</p>
     <label for="pwInput">Password</label><input id="pwInput" type="password" autocomplete="off">
     <div id="pwMsg" class="pwMsg" hidden>Incorrect password.</div>
     <div class="pwBtns"><button type="submit" id="pwOk">Open settings</button><button type="button" id="pwCancel" class="ghost">Cancel</button></div>
@@ -206,31 +206,31 @@
     <fieldset>
       <legend>Locations and elevations</legend>
       <div class="sRow"><div class="sName">ARP</div>
-        <div><label for="latA">Latitude</label><input id="latA" value="264349" autocomplete="off"></div>
+        <div><label for="latA">Latitude</label><input id="latA" value="264349.00" autocomplete="off"></div>
         <div><label for="lonA">Longitude</label><input id="lonA" value="941033.79" autocomplete="off"></div>
         <div><label for="gARP">Elevation (m)</label><input id="gARP" type="number" step="0.001" value="91.002"></div><div></div></div>
       <div class="sRow"><div class="sName">Aerodrome elevation</div>
         <div class="sWide"><label for="elev">Elevation (m AMSL) – datum for IHS, Conical, OHS</label><input id="elev" type="number" step="0.001" value="91" placeholder="e.g. 86"></div>
-        <div><label for="width">Runway width (m)</label><input id="width" type="number" value="45" min="10" max="150" step="0.5"></div><div></div></div>
+        <div><label for="width">Runway width (m)</label><input id="width" type="number" value="46" min="10" max="150" step="0.5"></div><div></div></div>
       <div class="sRow"><div class="sName">DB1</div>
-        <div><label for="lat1">Latitude</label><input id="lat1" value="264316.64228" autocomplete="off"></div>
-        <div><label for="lon1">Longitude</label><input id="lon1" value="940955.26796" autocomplete="off"></div>
+        <div><label for="lat1">Latitude</label><input id="lat1" value="264316.64" autocomplete="off"></div>
+        <div><label for="lon1">Longitude</label><input id="lon1" value="940955.26" autocomplete="off"></div>
         <div><label for="elev1" title="Threshold elevation – datum for the surfaces measured from DB1">Elevation (m)</label><input id="elev1" type="number" step="0.001" value="90.260"></div><div></div></div>
       <div class="sRow"><div class="sName">DB2</div>
-        <div><label for="lat2">Latitude</label><input id="lat2" value="264422.59774" autocomplete="off"></div>
-        <div><label for="lon2">Longitude</label><input id="lon2" value="941107.55045" autocomplete="off"></div>
+        <div><label for="lat2">Latitude</label><input id="lat2" value="264422.59" autocomplete="off"></div>
+        <div><label for="lon2">Longitude</label><input id="lon2" value="941107.55" autocomplete="off"></div>
         <div><label for="elev2" title="Threshold elevation – datum for the surfaces measured from DB2">Elevation (m)</label><input id="elev2" type="number" step="0.001" value="89.589"></div><div></div></div>
       <div class="sRow"><div class="sName">TDP – DB1</div>
-        <div><label for="latT1">Latitude</label><input id="latT1" value="264323.69183" autocomplete="off"></div>
-        <div><label for="lonT1">Longitude</label><input id="lonT1" value="941005.01922" autocomplete="off"></div>
+        <div><label for="latT1">Latitude</label><input id="latT1" value="264323.69" autocomplete="off"></div>
+        <div><label for="lonT1">Longitude</label><input id="lonT1" value="941005.01" autocomplete="off"></div>
         <div><label for="eT1">Elevation (m)</label><input id="eT1" type="number" step="0.001" value="90.628" placeholder="m AMSL"></div><div></div></div>
       <div class="sRow"><div class="sName">TDP – DB2</div>
-        <div><label for="latT2">Latitude</label><input id="latT2" value="264413.89084" autocomplete="off"></div>
-        <div><label for="lonT2">Longitude</label><input id="lonT2" value="941058.04109" autocomplete="off"></div>
+        <div><label for="latT2">Latitude</label><input id="latT2" value="264413.89" autocomplete="off"></div>
+        <div><label for="lonT2">Longitude</label><input id="lonT2" value="941058.04" autocomplete="off"></div>
         <div><label for="eT2">Elevation (m)</label><input id="eT2" type="number" step="0.001" value="90.467" placeholder="m AMSL"></div><div></div></div>
       <div class="sRow"><div class="sName">SRE</div>
-        <div><label for="latS">Latitude</label><input id="latS" value="264349.694" autocomplete="off"></div>
-        <div><label for="lonS">Longitude</label><input id="lonS" value="941014.208" autocomplete="off"></div>
+        <div><label for="latS">Latitude</label><input id="latS" value="264349.69" autocomplete="off"></div>
+        <div><label for="lonS">Longitude</label><input id="lonS" value="941014.20" autocomplete="off"></div>
         <div><label for="gSRE">Ground elev. (m)</label><input id="gSRE" type="number" step="0.001" value="90.240"></div>
         <div><label for="tSRE">Top elev. (m)</label><input id="tSRE" type="number" step="0.001" value="118.429"></div></div>
       <div class="sRow sRowSra"><div class="sName">SRA</div>
@@ -239,8 +239,8 @@
         <div><label for="soc">SOC from MAPt (m)</label><input id="soc" type="number" step="0.01" value="3384"></div><div></div>
         <div><label for="mapt">MAPt from TDP (m)</label><input id="mapt" type="number" step="0.01" value="1852"></div>
         <div><label for="maptNM">MAPt from TDP (NM)</label><input id="maptNM" type="number" step="0.01" value="1.00"></div>
-        <div><label for="faf">FAF from TDP (m)</label><input id="faf" type="number" step="0.01" value="13890"></div>
-        <div><label for="fafNM">FAF from TDP (NM)</label><input id="fafNM" type="number" step="0.01" value="7.50"></div></div>
+        <div><label for="faf">FAF from TDP (m)</label><input id="faf" type="number" step="0.01" value="12964"></div>
+        <div><label for="fafNM">FAF from TDP (NM)</label><input id="fafNM" type="number" step="0.01" value="7.00"></div></div>
       <div class="sRow"><div class="sName">DVOR</div>
         <div><label for="f_dvor_lat">Latitude</label><input id="f_dvor_lat" value="264324.12" autocomplete="off"></div>
         <div><label for="f_dvor_lon">Longitude</label><input id="f_dvor_lon" value="940952.87" autocomplete="off"></div>
@@ -263,6 +263,7 @@
         <div><label for="f_gp_t">Top elev. (m)</label><input id="f_gp_t" type="number" step="0.001" value="105.563"></div></div>
     </fieldset>
     <input id="magVar" type="hidden" value="0">
+    <input id="rwyMag" type="hidden" value="44">
     <div id="msg"></div>
     <button type="button" id="plotBtn">Apply</button>
   </div>
@@ -464,7 +465,7 @@
 
   function addObstacleGroup(kind = 'single') {
     const id = ++groupSequence;
-    const group = { id, kind, name: '', points: [{ lat: id === 1 ? '264400' : '', lon: id === 1 ? '941100' : '', site: '', ht: '', crane: '' }] };
+    const group = { id, kind, name: '', points: [{ lat: '', lon: '', site: '', ht: '', crane: '' }] };
     obstacleGroups.push(group);
     renderObstacleGroups();
   }
@@ -546,11 +547,11 @@
     if (s >= 60) { s -= 60; m++; } if (m >= 60) { m -= 60; d++; }
     return `${d}° ${String(m).padStart(2, '0')}′ ${s.toFixed(2).padStart(5, '0')}″ ${isLat ? (v >= 0 ? 'N' : 'S') : (v >= 0 ? 'E' : 'W')}`;
   }
-  function dmsCompact(v, isLat) {
-    const a = Math.abs(v); let d = Math.floor(a), m = Math.floor((a - d) * 60);
-    let s = Math.round(((a - d) * 60 - m) * 60 * 1e5) / 1e5;
+  function dmsCompact(v, isLat, dp) {
+    const a = Math.abs(v), k = 10 ** (dp == null ? 5 : dp); let d = Math.floor(a), m = Math.floor((a - d) * 60);
+    const s0 = ((a - d) * 60 - m) * 60; let s = dp == null ? Math.round(s0 * k) / k : Math.floor(s0 * k + 1e-6) / k;
     if (s >= 60) { s -= 60; m++; } if (m >= 60) { m -= 60; d++; }
-    let ss = s.toFixed(5).replace(/0{1,3}$/, ''); if (s < 10) ss = '0' + ss;
+    let ss = dp == null ? s.toFixed(5).replace(/0{1,3}$/, '') : s.toFixed(dp); if (s < 10) ss = '0' + ss;
     return String(d).padStart(isLat ? 2 : 3, '0') + String(m).padStart(2, '0') + ss + (isLat ? (v >= 0 ? 'N' : 'S') : (v >= 0 ? 'E' : 'W'));
   }
   function desig(brg) { let n = Math.round((((brg % 360) + 360) % 360) / 10); if (n === 0 || n > 36) n = 36; return String(n).padStart(2, '0'); }
@@ -775,17 +776,13 @@
   let GRID = null;   // { lon0, E0, N0 } – set in plot(): zone of the runway mid point, origin at the mid point
   const gridLon0 = (lon) => (GRID ? GRID.lon0 : utmCM(lon));
   // geographic (ECEF point) → local grid metres (x = grid east, y = grid north, from the origin), and back
-  function ecefToGrid(P) { const cg = Cesium.Cartographic.fromCartesian(P), [E, N] = utmFwd(cg.latitude / DEG, cg.longitude / DEG, GRID.lon0); return new Cesium.Cartesian3(E - GRID.E0, N - GRID.N0, 0); }
-  function gridToECEF(P) { const [la, lo] = utmInv(P.x + GRID.E0, P.y + GRID.N0, GRID.lon0); return Cesium.Cartesian3.fromDegrees(lo, la, P.z || 0); }
+  // (previous method) local east-north-up plane at the runway mid point: x = east, y = north (true), in metres from the mid point
+  function ecefToGrid(P) { const O = GRID.enu, d = [P.x - O.p.x, P.y - O.p.y, P.z - O.p.z]; return new Cesium.Cartesian3(d[0] * O.e[0] + d[1] * O.e[1] + d[2] * O.e[2], d[0] * O.n[0] + d[1] * O.n[1] + d[2] * O.n[2], 0); }
+  function gridToECEF(P) { const O = GRID.enu, q = new Cesium.Cartesian3(O.p.x + P.x * O.e[0] + P.y * O.n[0], O.p.y + P.x * O.e[1] + P.y * O.n[1], O.p.z + P.x * O.e[2] + P.y * O.n[2]), cg = Cesium.Cartographic.fromCartesian(q);
+    return Cesium.Cartesian3.fromRadians(cg.longitude, cg.latitude, P.z || 0); }
   // inverse / direct problems on the grid (same names as before so every calculation uses the grid)
-  function vincInv(lat1, lon1, lat2, lon2) {
-    const l0 = gridLon0(lon1), [E1, N1] = utmFwd(lat1, lon1, l0), [E2, N2] = utmFwd(lat2, lon2, l0), dE = E2 - E1, dN = N2 - N1;
-    return { dist: Math.hypot(dE, dN), brg: (Math.atan2(dE, dN) / DEG + 360) % 360 };
-  }
-  function vincDir(lat1, lon1, brg, dist) {
-    const l0 = gridLon0(lon1), [E1, N1] = utmFwd(lat1, lon1, l0), [la, lo] = utmInv(E1 + dist * Math.sin(brg * DEG), N1 + dist * Math.cos(brg * DEG), l0);
-    return { lat: la, lon: lo };
-  }
+  function vincInv(lat1, lon1, lat2, lon2) { return vincInvGeo(lat1, lon1, lat2, lon2); }
+  function vincDir(lat1, lon1, brg, dist) { return vincDirGeo(lat1, lon1, brg, dist); }
   // ---------- (previous) Vincenty formulae on the WGS-84 ellipsoid – kept for reference, not used ----------
   const WGS = { a: 6378137, b: 6356752.314245, f: 1 / 298.257223563 };
   function vincInvGeo(lat1, lon1, lat2, lon2) {
@@ -837,14 +834,14 @@
     if (sn.faf <= sn.mapt) { errs.push('FAF distance must be greater than the MAPt distance'); $('faf').classList.add('bad'); }
     const width = parseFloat($('width').value);
     if (!(width >= 10 && width <= 150)) { errs.push('Width: enter 10 to 150 m'); $('width').classList.add('bad'); }
-    const magVar = parseFloat($('magVar').value);
+    let magVar = parseFloat($('magVar').value);
     if (!Number.isFinite(magVar) || magVar < -30 || magVar > 30) { errs.push('Magnetic variation: enter a value from -30 to +30 degrees'); $('magVar').classList.add('bad'); }
     if (!errs.length && [[lat1, lon1], [lat2, lon2], [latA, lonA], [latS, lonS], [latT1, lonT1], [latT2, lonT2]].some(([la, lo]) => la < INDIA_DEG.s || la > INDIA_DEG.n || lo < INDIA_DEG.w || lo > INDIA_DEG.e))
       errs.push('Coordinates are outside India – this tool shows Indian area only');
     if (errs.length) { msg.innerHTML = errs.join('<br>'); return false; }
     // write back the normalised (zero-padded) values
-    [['lat1', lat1, true], ['lon1', lon1, false], ['lat2', lat2, true], ['lon2', lon2, false], ['latA', latA, true], ['lonA', lonA, false], ['latS', latS, true], ['lonS', lonS, false], ['latT1', latT1, true], ['lonT1', lonT1, false], ['latT2', latT2, true], ['lonT2', lonT2, false]].forEach(([id, v, isLat]) => { $(id).value = dmsCompact(v, isLat); });
-    ['dvor', 'loc', 'tacan', 'gp'].forEach(k => [['lat', true], ['lon', false]].forEach(([w, isLat]) => { const el = $(`f_${k}_${w}`), c = parseCoord(el.value, isLat); if (!c.err) el.value = dmsCompact(c.val, isLat); }));
+    [['lat1', lat1, true], ['lon1', lon1, false], ['lat2', lat2, true], ['lon2', lon2, false], ['latA', latA, true], ['lonA', lonA, false], ['latS', latS, true], ['lonS', lonS, false], ['latT1', latT1, true], ['lonT1', lonT1, false], ['latT2', latT2, true], ['lonT2', lonT2, false]].forEach(([id, v, isLat]) => { $(id).value = dmsCompact(v, isLat, 2); });
+    ['dvor', 'loc', 'tacan', 'gp'].forEach(k => [['lat', true], ['lon', false]].forEach(([w, isLat]) => { const el = $(`f_${k}_${w}`), c = parseCoord(el.value, isLat); if (!c.err) el.value = dmsCompact(c.val, isLat, 2); }));
     if (typeof Cesium === 'undefined') { msg.textContent = '3D library could not be loaded (check internet access).'; return false; }
     drawScene = !!viewer;
 
@@ -854,16 +851,18 @@
     const mid = C.Cartesian3.midpoint(A, B, new C.Cartesian3());
     const enu = C.Transforms.eastNorthUpToFixedFrame(mid);
     const inv = C.Matrix4.inverse(enu, new C.Matrix4());
-    { const cg = C.Cartographic.fromCartesian(mid), lon0 = utmCM(cg.longitude / DEG), [E0, N0] = utmFwd(cg.latitude / DEG, cg.longitude / DEG, lon0); GRID = { lon0, E0, N0, zone: Math.floor((lon0 + 180) / 6) + 1 }; }
+    { const cg = C.Cartographic.fromCartesian(mid), lon0 = utmCM(cg.longitude / DEG), [E0, N0] = utmFwd(cg.latitude / DEG, cg.longitude / DEG, lon0); GRID = { lon0, E0, N0, zone: Math.floor((lon0 + 180) / 6) + 1 };
+      const sl = Math.sin(cg.longitude), cl = Math.cos(cg.longitude), sp = Math.sin(cg.latitude), cp = Math.cos(cg.latitude); GRID.enu = { p: mid, e: [-sl, cl, 0], n: [-sp * cl, -sp * sl, cp] }; }
     const a = ecefToGrid(A);
     const b = ecefToGrid(B);
     const dx = b.x - a.x, dy = b.y - a.y;
     const L = Math.hypot(dx, dy);
     if (L < 100) { msg.textContent = 'The two dumbells are too close together (< 100 m).'; return false; }
     // length along the WGS-84 ellipsoid surface (geodesic) for the report
-    const Lgeo = L;   // grid length
-    const brg = (Math.atan2(dx, dy) / DEG + 360) % 360;   // grid bearing DB1 → DB2
-    const brgR = (brg + 180) % 360;                      // grid bearing DB2 → DB1
+    const gDB = vincInvGeo(lat1, lon1, lat2, lon2), Lgeo = gDB.dist;   // length on the WGS-84 ellipsoid
+    const brg = gDB.brg;                                 // true bearing DB1 → DB2
+    const brgR = vincInvGeo(lat2, lon2, lat1, lon1).brg; // true bearing DB2 → DB1
+    { const rm = parseFloat($('rwyMag').value); if (Number.isFinite(rm)) magVar = brg - rm; }   // runway magnetic orientation kept as set (044° / 224°)
     const brgMag = Math.round((brg - magVar + 360) % 360) % 360, brgRMag = (brgMag + 180) % 360;   // magnetic orientation in whole degrees (used in all calculations)
     const axT = (brgMag + magVar + 360) % 360;   // runway axis (true / grid) from the whole-degree magnetic orientation
     const runwayNames = [`RW${desig(brgMag)}`, `RW${desig(brgRMag)}`];
@@ -1467,20 +1466,21 @@
     const L = num('L'); let o = el.dataset.f === 'o2' ? num('o2') - 180 : num('o1');
     if (!Number.isFinite(L) || L < 100 || !Number.isFinite(o)) { calcObstacle(false); return; }
     o = ((o + (G.magVar || 0)) % 360 + 360) % 360;   // magnetic → true
+    if (el.dataset.f !== 'L') $('rwyMag').value = ((el.dataset.f === 'o2' ? num('o2') - 180 : num('o1')) % 360 + 360) % 360;
     const a = parseCoord($('lat1').value, true), b = parseCoord($('lon1').value, false); if (a.err || b.err) return;
     let p = vincDir(a.val, b.val, o, L);
     if (el.dataset.f === 'o2') {   // RW22 given: correct for the small change in azimuth along the runway so that RW22 reads back exactly as typed
       const want = ((num('o2') + (G.magVar || 0)) % 360 + 360) % 360, back = vincInv(p.lat, p.lon, a.val, b.val).brg;
       o = (o + ((want - back + 540) % 360) - 180 + 360) % 360; p = vincDir(a.val, b.val, o, L);
     }
-    $('lat2').value = dmsCompact(p.lat, true); $('lon2').value = dmsCompact(p.lon, false);
+    $('lat2').value = dmsCompact(p.lat, true, 2); $('lon2').value = dmsCompact(p.lon, false, 2);
     if (await plot(true)) calcObstacle(false);
   }
   function onRefOverride(ev) {
     const el = ev.target, g = Number(el.dataset.g), p = Number(el.dataset.p), r = Number(el.dataset.r), row = el.closest('tr');
     const brg = parseFloat(row.querySelector('[data-f="b"]').value), d = parseFloat(row.querySelector('[data-f="d"]').value);
     if (!Number.isFinite(brg) || !Number.isFinite(d) || d < 0) { calcObstacle(false); return; }
-    const C = Cesium, ref = [G.a, G.b, G.arpL, G.sreL][r], th = brg * DEG;
+    const C = Cesium, ref = [G.a, G.b, G.arpL, G.sreL][r], th = (brg + (G.magVar || 0)) * DEG;   // typed bearing is magnetic
     const cg = C.Cartographic.fromCartesian(gridToECEF(new C.Cartesian3(ref.x + d * Math.sin(th), ref.y + d * Math.cos(th), 0)));
     const lat = cg.latitude / DEG, lon = cg.longitude / DEG, pt = obstacleGroups.find(x => x.id === g).points[p];
     pt.lat = lat; pt.lon = lon;
@@ -1509,14 +1509,14 @@
       const label = R.kind === 'building' ? `Corner ${R.pointIndex + 1}` : R.kind === 'line' ? `Mast ${R.pointIndex + 1}` : 'Location';
       const color = R.cleared ? '#2e7d32' : '#e53935';
       const refTbl = `<table class="refTbl"><tr><th colspan="3">Distances from reference points (edit a bearing or distance to override)</th></tr><tr><th>Reference</th><th>Bearing (°)</th><th>Distance (m)</th></tr>` +
-        R.locs.map((r, i) => `<tr><td>${[G.runwayNames[0], G.runwayNames[1], 'ARP', 'SRE'][i]}</td><td><input class="refIn" type="text" inputmode="decimal" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="b" value="${dg(r.brg)}"></td><td><input class="refIn" type="number" step="0.01" min="0" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="d" value="${f(r.dist)}"></td></tr>`).join('') + '</table>';
+        R.locs.map((r, i) => `<tr><td>${[G.runwayNames[0], G.runwayNames[1], 'ARP', 'SRE'][i]}</td><td><input class="refIn" type="text" inputmode="decimal" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="b" value="${dg(magB(r.brg))}"></td><td><input class="refIn" type="number" step="0.01" min="0" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="d" value="${f(r.dist)}"></td></tr>`).join('') + '</table>';
       const headline = R.cleared ? (R.hits.length ? 'CLEARED' : 'CLEARED - outside all plotted OLS surfaces') : 'NOT CLEARED';
       const limit = R.gov ? `Maximum permitted: <b>${f(R.gov.amsl)} m AMSL</b> (governing: ${R.gov.name})` : 'No OLS height limit applies here.';
       return `<div style="padding:8px 0">${refTbl}<fieldset class="resBox" style="border-color:${color}"><legend style="color:${color}">Result</legend><b>${escapeHtmlSimple(R.name)} - ${label}</b>: ${dms(R.lat, true)}, ${dms(R.lon, false)} · top ${f(R.top)} m AMSL<br><span style="color:${color};font-weight:700">${headline}</span><br>${limit}${R.hits.length ? '<br>' + R.hits.filter(h => h.infringes).map(h => `${h.name}: exceeds by ${f(-h.margin)} m`).join('<br>') : ''}</fieldset></div>`;
     };
     const groupBox = (Rs) => { const I = groupInfo(Rs), c = I.crit, color = I.cleared ? '#2e7d32' : '#e53935';
       const det = Rs.map(R => `<details class="refDet"><summary>Distances from reference points – ${I.lab(R)} (edit a bearing or distance to override)</summary><table class="refTbl"><tr><th>Reference</th><th>Bearing (°)</th><th>Distance (m)</th></tr>` +
-        R.locs.map((r, i) => `<tr><td>${[G.runwayNames[0], G.runwayNames[1], 'ARP', 'SRE'][i]}</td><td><input class="refIn" type="text" inputmode="decimal" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="b" value="${dg(r.brg)}"></td><td><input class="refIn" type="number" step="0.01" min="0" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="d" value="${f(r.dist)}"></td></tr>`).join('') + '</table></details>').join('');
+        R.locs.map((r, i) => `<tr><td>${[G.runwayNames[0], G.runwayNames[1], 'ARP', 'SRE'][i]}</td><td><input class="refIn" type="text" inputmode="decimal" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="b" value="${dg(magB(r.brg))}"></td><td><input class="refIn" type="number" step="0.01" min="0" data-g="${R.groupId}" data-p="${R.pointIndex}" data-r="${i}" data-f="d" value="${f(r.dist)}"></td></tr>`).join('') + '</table></details>').join('');
       const lines = Rs.map(R => `<div class="unitLn" style="color:${R.cleared ? '#2e7d32' : '#e53935'}">${I.lab(R)}${R === c ? ' (critical)' : ''}: top ${f(R.top)} m · ${R.gov ? `max ${f(R.gov.amsl)} m AMSL (${R.gov.name}) · ${R.cleared ? 'margin ' + f(I.mg(R)) + ' m' : 'exceeds by ' + f(-I.mg(R)) + ' m'}` : 'no OLS limit'}</div>`).join('');
       const gov = c.gov ? `Governing: <b>${I.lab(c)}</b> – maximum permitted <b>${f(c.gov.amsl)} m AMSL</b> (${c.gov.name})${I.cleared ? ', margin ' + f(I.mg(c)) + ' m' : ', exceeds by ' + f(-I.mg(c)) + ' m'}` : 'No OLS height limit applies at any ' + I.unit.toLowerCase() + '.';
       return `<div style="padding:8px 0">${det}<fieldset class="resBox" style="border-color:${color}"><legend style="color:${color}">Result</legend><b>${escapeHtmlSimple(Rs[0].name)} – ${I.line ? 'Transmission Line' : 'Building'}, ${I.n} ${I.units}</b><br><span style="color:${color};font-weight:700">${I.cleared ? 'CLEARED' : 'NOT CLEARED'}</span><br>${gov}${lines}</fieldset></div>`; };
@@ -1607,7 +1607,7 @@
     svg += `<line x1="${pad}" y1="${H - 16}" x2="${pad + nice * scale}" y2="${H - 16}" stroke="#111" stroke-width="3"/>` + txt(pad + nice * scale / 2, H - 22, `${nice} m`, { fs: 11 });
     svg += northArrow(W - 30, 50);
     const nmx = (x) => x === 'DB1' ? G.runwayNames[0] + ' DB' : x === 'DB2' ? G.runwayNames[1] + ' DB' : x;
-    const leg = [['#d50000', `d = ${f(R.best.dist)} m, bearing ${dg(R.best.brg)}: obstacle from ${nmx(R.best.name)} (nearest reference point)`], ['#1565c0', `P = ${f(Math.abs(P.OBS.t))} m: obstacle from the runway centreline`], ['#555', 'Dotted box: 280 m wide runway strip'], ['#2e7d32', `B = ${f(Math.abs(P.OBS.s - nearThr.s))} m: ${nmx(nearThr === P.DB1 ? 'DB1' : 'DB2')} to the point abeam the obstacle`]];
+    const leg = [['#d50000', `d = ${f(R.best.dist)} m, bearing ${dg(magB(R.best.brg))}: obstacle from ${nmx(R.best.name)} (nearest reference point)`], ['#1565c0', `P = ${f(Math.abs(P.OBS.t))} m: obstacle from the runway centreline`], ['#555', 'Dotted box: 280 m wide runway strip'], ['#2e7d32', `B = ${f(Math.abs(P.OBS.s - nearThr.s))} m: ${nmx(nearThr === P.DB1 ? 'DB1' : 'DB2')} to the point abeam the obstacle`]];
     if (arpOn) leg.push(['#8e24aa', `a = ${f(R.dArp)} m: obstacle from the ARP`]);
     leg.push([R.cleared ? '#2e7d32' : '#d50000', `Obstacle top elevation ${f(R.top)} m AMSL`]);
     svg += legDraw(leg, W - 2 * pad, H + 6, pad, 11);
@@ -1701,7 +1701,7 @@
     return '<table>' + row('Name of project', escapeHtmlSimple(R.name)) +
       row('Proposed top elevation (site elev. + construction ht + crane)', `${m(R.site)} + ${m(R.ht)} + ${m(R.crane)} = ${f(R.top)} m AMSL`) +
       row('Runway length', `${f(G.Lloc)} m`) + row('Runway magnetic orientation', `${G.runwayNames[0]} ${dg(G.brgMag, 0)} / ${G.runwayNames[1]} ${dg(G.brgRMag, 0)}`) +
-      row('Nearest Runway End', `DB${n}`) + row('Bearing / distance from nearest Runway End', `${dg(l.brg)} / ${f(l.dist)} m`) + row('Bearing / distance from ARP', `${dg(ar.brg)} / ${f(ar.dist)} m`) + row('Distance from SRE', `${f(R.locs[3].dist)} m`) +
+      row('Nearest Runway End', `DB${n}`) + row('Bearing / distance from nearest Runway End', `${dg(magB(l.brg))} / ${f(l.dist)} m`) + row('Bearing / distance from ARP', `${dg(magB(ar.brg))} / ${f(ar.dist)} m`) + row('Distance from SRE', `${f(R.locs[3].dist)} m`) +
       row('Surfaces affecting this proposal', R.hits.length ? R.hits.map(h => h.name).join(', ') : 'None') + row('Controlling surface', R.gov ? R.gov.name : '—') +
       row('Permissible top elevation', R.gov ? f(R.gov.amsl) + ' m AMSL' : '—') + row('Recommendation', recText(R)) + '</table>';
   }
@@ -2456,7 +2456,7 @@
     const S = G.SRA, row = (lbl, fn) => `<tr><td>${lbl}</td>${[1, 2].map(n => `<td>${fn(n - 1)}</td>`).join('')}</tr>`, E150 = S.E + 150;
     const fromDB = (n, u) => u >= 0 ? `${f(u)} (approach side)` : -u <= G.Lloc ? `${f(-u)} (over the runway)` : `${f(-u)} (${f(-u - G.Lloc)} m beyond ${G.runwayNames[2 - n]} DB)`;
     return `<table><tr><th>Item</th><th>${G.runwayNames[0]}</th><th>${G.runwayNames[1]}</th></tr>` + row('OCA – Obstacle Clearance Altitude (m AMSL)', i => f(S.oca[i])) +
-      row('Distance of the DB from the TDP (touchdown point) (m)', i => f(S.tdd[i])) + row('Bearing / distance (H) of the SRE from the DB', i => `${dg(S.geo[i].brg)} / ${f(S.geo[i].d0)} m`) +
+      row('Distance of the DB from the TDP (touchdown point) (m)', i => f(S.tdd[i])) + row('Bearing / distance (H) of the SRE from the DB', i => `${dg(magB(S.geo[i].brg))} / ${f(S.geo[i].d0)} m`) +
       row('P – perpendicular distance of the SRE from the runway centre line (m)', i => f(S.geo[i].P)) +
       row('B – distance along the centre line from the DB to the point abeam the SRE (m)', i => `${f(Math.abs(S.geo[i].B))} (${S.geo[i].B < 0 ? 'on the runway side' : 'on the approach side'})`) +
       row('MAPt (Missed Approach Point): distance from the DB on the approach side (m)', i => f(S.rm[i].M)) + row('D (MAPt) – distance from the SRE to the MAPt (m)', i => f(S.dm[i])) + row('W/2 (MAPt) – half-width of the SRA area at the MAPt (m)', i => f(S.w2m[i])) +
@@ -2639,7 +2639,7 @@
     const t2 = `<table class="ws"><tr><th style="text-align:center">Sl. No.</th><th style="text-align:center">Details of Project</th><th>INFORMATION</th></tr>` +
       row(1, 'Name of Project', escapeHtmlSimple(R.name).toUpperCase()) + row(2, 'Site Elevation', mt3(R.site)) + row(3, 'Construction height', mt(R.ht)) +
       row(4, 'Site Elev + Const Ht + Crane Ht (If any)', `<b>${mt(R.top)}</b> (${mt3(R.site)} + ${mt(R.ht)}${crane})`) + row(5, 'Nearest runway end', `<b>${nm(n - 1)} DMBL</b>`) +
-      row(6, 'Bearing / Distance From Nearest DMBL', `<b>${dg(l.brg)}/${mt(l.dist)}</b> (${nm(n - 1)}DB)`) + row(7, 'Bearing / Distance from ARP', `${dg(ar.brg)}/${mt(ar.dist)}`) +
+      row(6, 'Bearing / Distance From Nearest DMBL', `<b>${dg(magB(l.brg))}/${mt(l.dist)}</b> (${nm(n - 1)}DB)`) + row(7, 'Bearing / Distance from ARP', `${dg(magB(ar.brg))}/${mt(ar.dist)}`) +
       row(8, 'Distance from DVOR', facDist('dvor')) + row(9, 'Distance from TACAN', facDist('tacan')) + row(10, 'Distance from SRE', mt(R.locs[3].dist)) +
       row(11, 'Infringing surfaces', `<b>${R.hits.length ? R.hits.map(h => h.name).join(', ') : 'None'}</b>`) + row(12, 'Controlling surface', `<b>${R.gov ? R.gov.name : '—'}</b>`) +
       row(13, 'Permissible Elevation in Mtrs', R.gov ? mt(R.gov.amsl) : '—') + row(14, 'Calculation', 'As per calculation') + row(15, 'Recommendations', recText(R)) + '</table>';
@@ -2839,7 +2839,7 @@
   // distances of one proposed location from the reference points (table)
   function distTableHtml(R) {
     const near = R.best.name, displayName = name => name === 'DB1' ? G.runwayNames[0] : name === 'DB2' ? G.runwayNames[1] : name;
-    return `<table><tr><th>Reference point</th><th>Distance to obstacle</th><th>Bearing</th></tr>${R.locs.map(r => `<tr${r.name === near ? ' style="background:#fff4d6"' : ''}><td>${displayName(r.name)}${r.name === near ? ' (nearest)' : ''}</td><td><b>${f(r.dist)} m</b></td><td>${dg(r.brg, 2)}</td></tr>`).join('')}</table>`;
+    return `<table><tr><th>Reference point</th><th>Distance to obstacle</th><th>Bearing</th></tr>${R.locs.map(r => `<tr${r.name === near ? ' style="background:#fff4d6"' : ''}><td>${displayName(r.name)}${r.name === near ? ' (nearest)' : ''}</td><td><b>${f(r.dist)} m</b></td><td>${dg(magB(r.brg), 2)}</td></tr>`).join('')}</table>`;
   }
   function buildSheet(R) { return finishSheet(rawSheet(R)); }
   function rawSheet(R) {
@@ -2917,7 +2917,7 @@
       GRP = { list: Rs, ref: c.R }; return sraObsHtml(c.R, k).replace('</h3>', ' – critical ' + lab(c.R) + '</h3>' + cmp(list, c)); }).join('');
     // table of all corners (masts)
     const unitTable = '<table><tr><th>' + unit + '</th><th>Latitude / Longitude</th><th>Nearest reference: bearing / distance</th><th>Top (m AMSL)</th><th>Surfaces it falls in</th><th>Governing surface</th><th>Max permitted (m AMSL)</th><th>Margin (m)</th><th>Result</th></tr>' +
-      Rs.map(R => '<tr' + (R === crit ? ' style="background:#fff4d6"' : '') + '><td>' + (R.pointIndex + 1) + (R === crit ? ' (critical)' : '') + '</td><td>' + dms(R.lat, true) + ' / ' + dms(R.lon, false) + '</td><td>' + R.best.name + ': ' + dg(R.best.brg) + ' / ' + f(R.best.dist) + ' m</td><td>' + f(R.top) + '</td><td>' + (R.hits.length ? R.hits.map(h => h.name).join(', ') : 'None') + '</td><td>' + (R.gov ? R.gov.name : '—') + '</td><td>' + (R.gov ? f(R.gov.amsl) : '—') + '</td><td>' + (R.gov ? sg(mg(R)) : '—') + '</td><td>' + (R.cleared ? '<span class="ok">CLEARED</span>' : '<span class="no">INFRINGES</span>') + '</td></tr>').join('') + '</table>';
+      Rs.map(R => '<tr' + (R === crit ? ' style="background:#fff4d6"' : '') + '><td>' + (R.pointIndex + 1) + (R === crit ? ' (critical)' : '') + '</td><td>' + dms(R.lat, true) + ' / ' + dms(R.lon, false) + '</td><td>' + R.best.name + ': ' + dg(magB(R.best.brg)) + ' / ' + f(R.best.dist) + ' m</td><td>' + f(R.top) + '</td><td>' + (R.hits.length ? R.hits.map(h => h.name).join(', ') : 'None') + '</td><td>' + (R.gov ? R.gov.name : '—') + '</td><td>' + (R.gov ? f(R.gov.amsl) : '—') + '</td><td>' + (R.gov ? sg(mg(R)) : '—') + '</td><td>' + (R.cleared ? '<span class="ok">CLEARED</span>' : '<span class="no">INFRINGES</span>') + '</td></tr>').join('') + '</table>';
     // affected surfaces: the critical corner (mast) of each surface
     const hn = []; Rs.forEach(R => R.hits.forEach(h => { if (!hn.includes(h.name)) hn.push(h.name); }));
     const crHits = hn.map(nm => { const list = Rs.map(R => ({ R, h: R.hits.find(h => h.name === nm) })).filter(x => x.h), c = list.reduce((a, b) => (b.h.amsl - b.R.top) < (a.h.amsl - a.R.top) ? b : a, list[0]);
@@ -3001,13 +3001,13 @@
 
   // aerodrome settings are protected by a password (asked every time they are opened)
   const pwHash = (t) => { let h = 5381; for (const ch of t) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0; return h; };
-  function openSettings() {
-    $('pwInput').value = ''; $('pwMsg').hidden = true; $('pwModal').hidden = false; setTimeout(() => $('pwInput').focus(), 0);
-  }
+  let pwNext = null;   // what opens after the correct password
+  function askPw(title, hint, next) { pwNext = next; $('pwTitle').textContent = title; $('pwHint').textContent = hint; $('pwOk').textContent = 'Open'; $('pwInput').value = ''; $('pwMsg').hidden = true; $('pwModal').hidden = false; setTimeout(() => $('pwInput').focus(), 0); }
+  function openSettings() { askPw('Aerodrome settings', 'Enter the password to view or change the aerodrome settings.', () => { $('settingsModal').hidden = false; }); $('pwOk').textContent = 'Open settings'; }
   $('pwForm').addEventListener('submit', (e) => { e.preventDefault(); e.stopPropagation();
-    if (pwHash($('pwInput').value) === 3157847335) { $('pwModal').hidden = true; $('settingsModal').hidden = false; }
+    if (pwHash($('pwInput').value) === 3157847335) { $('pwModal').hidden = true; const nx = pwNext; pwNext = null; if (nx) nx(); }
     else { $('pwMsg').hidden = false; $('pwInput').select(); } });
-  $('pwCancel').addEventListener('click', () => { $('pwModal').hidden = true; });
+  $('pwCancel').addEventListener('click', () => { $('pwModal').hidden = true; pwNext = null; });
   function closeSettings() { $('settingsModal').hidden = true; }
 
   $('chkCon').addEventListener('change', () => { conEntities.forEach(e => e.show = $('chkCon').checked); if (viewer) viewer.scene.requestRender(); });
@@ -3022,10 +3022,10 @@
   addObstacleGroup();
   $('calcBtn').addEventListener('click', onCalculate);
   $('settingsBtn').addEventListener('click', openSettings);
-  $('sraBtn').addEventListener('click', async () => {
+  $('sraBtn').addEventListener('click', () => askPw('SRA Basic Calculations', 'Enter the password to open the SRA basic calculations.', async () => {
     if (!G && !(await plot(true))) { openSettings(); return; }
     $('sheetBody').innerHTML = buildSraBasicSheet(); $('sheetModal').style.display = 'block'; $('sheetModal').scrollTop = 0;
-  });
+  }));
   [['mapt', 'maptNM'], ['faf', 'fafNM']].forEach(([m, nm]) => {
     $(m).addEventListener('input', () => { const v = parseFloat($(m).value); $(nm).value = Number.isFinite(v) ? (v / 1852).toFixed(2) : ''; });
     $(nm).addEventListener('input', () => { const v = parseFloat($(nm).value); if (Number.isFinite(v)) $(m).value = (v * 1852).toFixed(2); });
